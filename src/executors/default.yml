@@ -1,0 +1,9 @@
+---
+description: >
+  CircleCI executor yamllint
+docker:
+  - image: '<<parameters.image>>'
+parameters:
+  image:
+    default: ghcr.io/docker-images-mamono210/circleci-executors/yamllint:latest
+    type: string

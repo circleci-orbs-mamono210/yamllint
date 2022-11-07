@@ -1,0 +1,35 @@
+version: 2.1
+orbs:
+  yamllint: orbss/yamllint@dev:<<pipeline.git.revision>>
+  orb-tools: circleci/orb-tools@11.1
+
+filters: &filters
+  tags:
+    only: /.*/
+
+jobs:
+  command-tests:
+    executor: yamllint/default
+    steps:
+      - checkout
+      - yamllint/execute
+workflows:
+  test-deploy:
+    jobs:
+      - command-tests:
+          filters: *filters
+      - orb-tools/pack:
+          filters: *filters
+      - orb-tools/publish:
+          orb-name: orbss/yamllint
+          vcs-type: << pipeline.project.type >>
+          pub-type: production
+          requires:
+            - orb-tools/pack
+            - command-tests
+          context: <publishing-context>
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v[0-9]+\.[0-9]+\.[0-9]+$/

@@ -1,0 +1,10 @@
+---
+description: >
+  Execute yamllint
+steps:
+  - run:
+      name: Show yamllint version
+      command: <<include(scripts/show-version.sh)>>
+  - run:
+      name: Execute yamllint
+      command: yamllint .

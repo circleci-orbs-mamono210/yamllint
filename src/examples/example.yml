@@ -1,0 +1,16 @@
+description: >
+  Execute yammlint
+usage:
+  version: 2.1
+  orbs:
+    yamllint: orbss/yamllint@x.y.z
+  jobs:
+    execute-yamllint:
+      executor: yamllint/defaut
+      steps:
+        - checkout
+        - yamllint/execute
+  workflows:
+    use-my-orb:
+      jobs:
+        - execute-yamllint

@@ -1,0 +1,8 @@
+---
+version: 2.1
+
+description: >
+  This Orb runs yamllint against the checked out code, the Docker image of the Executor is 'ghcr.io/docker-images-mamono210/circleci-executors/yamllint:latest'.
+
+display:
+  source_url: "https://github.com/circleci-orbs-mamono210/yamllint"
