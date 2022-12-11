@@ -13,10 +13,19 @@ jobs:
     steps:
       - checkout
       - yamllint/execute
+  resource-class-test:
+    executor:
+      name: yamllint/default
+      resource_class: medium
+    steps:
+      - checkout
+      - yamllint/execute
 workflows:
   test-deploy:
     jobs:
       - command-tests:
+          filters: *filters
+      - resource-class-test:
           filters: *filters
       - orb-tools/pack:
           filters: *filters
@@ -27,6 +36,7 @@ workflows:
           requires:
             - orb-tools/pack
             - command-tests
+            - resource-class-test
           context: <publishing-context>
           filters:
             branches:
