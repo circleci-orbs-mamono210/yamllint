@@ -1,4 +1,5 @@
 version: 2.1
+
 orbs:
   yamllint: orbss/yamllint@dev:<<pipeline.git.revision>>
   orb-tools: circleci/orb-tools@11.1
@@ -13,6 +14,7 @@ jobs:
     steps:
       - checkout
       - yamllint/execute
+
   resource-class-test:
     executor:
       name: yamllint/default
@@ -20,12 +22,47 @@ jobs:
     steps:
       - checkout
       - yamllint/execute
+
+  install-command-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Verify yamllint installation
+          command: yamllint --version
+
+  install-version-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install:
+          version: "1.37.1"
+      - run:
+          name: Verify installed yamllint version
+          command: |
+            INSTALLED_VERSION="$(
+              python -c 'from importlib.metadata import version; print(version("yamllint"))'
+            )"
+
+            if [[ "${INSTALLED_VERSION}" != "1.37.1" ]]; then
+              echo "Expected yamllint version: 1.37.1"
+              echo "Installed yamllint version: ${INSTALLED_VERSION}"
+              exit 1
+            fi
+
+            echo "yamllint ${INSTALLED_VERSION}"
+
 workflows:
   test-deploy:
     jobs:
       - command-tests:
           filters: *filters
       - resource-class-test:
+          filters: *filters
+      - install-command-test:
+          filters: *filters
+      - install-version-test:
           filters: *filters
       - orb-tools/pack:
           filters: *filters
@@ -37,6 +74,8 @@ workflows:
             - orb-tools/pack
             - command-tests
             - resource-class-test
+            - install-command-test
+            - install-version-test
           context: CIRCLECI_ORBS
           filters:
             branches:

@@ -1,0 +1,18 @@
+---
+description: >
+  Install yamllint
+
+parameters:
+  version:
+    type: string
+    default: ""
+    description: >
+      Version of yamllint to install. If empty, the latest available version
+      is installed.
+
+steps:
+  - run:
+      name: Install yamllint
+      environment:
+        PARAM_VERSION: << parameters.version >>
+      command: <<include(scripts/install.sh)>>
