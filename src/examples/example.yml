@@ -6,7 +6,7 @@ usage:
     yamllint: orbss/yamllint@x.y.z
   jobs:
     execute-yamllint:
-      executor: yamllint/defaut
+      executor: yamllint/default
       steps:
         - checkout
         - yamllint/execute
