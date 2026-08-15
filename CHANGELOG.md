@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-08-16
+
+### Changed
+
+- Changed the default executor image from
+  `ghcr.io/docker-images-mamono210/circleci-executors/yamllint:latest`
+  to `cimg/python:3.14`.
+- Updated command and resource class integration tests to install yamllint
+  explicitly with the `install` command before running `execute`.
+
+### Added
+
+- Added an integration test to verify that a custom executor image can still
+  be specified with the `image` parameter.
+
 ## [0.0.6] - 2026-08-16
 
 ### Added

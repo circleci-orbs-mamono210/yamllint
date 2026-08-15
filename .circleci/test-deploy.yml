@@ -13,6 +13,7 @@ jobs:
     executor: yamllint/default
     steps:
       - checkout
+      - yamllint/install
       - yamllint/execute
 
   resource-class-test:
@@ -21,6 +22,16 @@ jobs:
       resource_class: medium
     steps:
       - checkout
+      - yamllint/install
+      - yamllint/execute
+
+  custom-image-test:
+    executor:
+      name: yamllint/default
+      image: cimg/python:3.13
+    steps:
+      - checkout
+      - yamllint/install
       - yamllint/execute
 
   install-command-test:
@@ -60,6 +71,8 @@ workflows:
           filters: *filters
       - resource-class-test:
           filters: *filters
+      - custom-image-test:
+          filters: *filters
       - install-command-test:
           filters: *filters
       - install-version-test:
@@ -74,6 +87,7 @@ workflows:
             - orb-tools/pack
             - command-tests
             - resource-class-test
+            - custom-image-test
             - install-command-test
             - install-version-test
           context: CIRCLECI_ORBS

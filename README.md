@@ -10,7 +10,7 @@ CircleCI Orb for running yamllint.
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@0.0.6
+  yamllint: orbss/yamllint@0.0.7
 
 jobs:
   lint:
@@ -25,6 +25,24 @@ workflows:
     jobs:
       - lint
 ```
+
+## Executor
+
+The default executor uses:
+
+```text
+cimg/python:3.14
+```
+
+A custom Docker image can be specified with the `image` parameter.
+
+```yaml
+executor:
+  name: yamllint/default
+  image: cimg/python:3.13
+```
+
+The selected image must provide Python and pip so that the `install` command can install yamllint.
 
 ## Install yamllint
 
