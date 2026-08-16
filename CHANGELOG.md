@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added the `targets` parameter to the `execute` command.
+- Added support for specifying multiple lint targets using one target per line.
+- Added integration tests for the `targets` parameter.
+
 ## [1.0.0] - 2026-08-16
 
 ### Added

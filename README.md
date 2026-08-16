@@ -85,3 +85,33 @@ steps:
   - yamllint/install
   - yamllint/execute
 ```
+
+By default, the `execute` command runs yamllint against the current directory.
+
+```bash
+yamllint .
+```
+
+### Specify a target
+
+The `targets` parameter can be used to lint a specific file or directory.
+
+```yaml
+steps:
+  - yamllint/execute:
+      targets: .circleci/
+```
+
+### Specify multiple targets
+
+Multiple targets can be specified using one target per line.
+
+```yaml
+steps:
+  - yamllint/execute:
+      targets: |
+        .circleci/
+        src/
+```
+
+The default value of `targets` is `.`.

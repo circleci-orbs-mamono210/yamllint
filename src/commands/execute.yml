@@ -1,10 +1,21 @@
 ---
 description: >
   Execute yamllint
+
+parameters:
+  targets:
+    type: string
+    default: "."
+    description: >
+      Files or directories to lint. Multiple targets can be specified
+      using one target per line.
+
 steps:
   - run:
       name: Show yamllint version
       command: <<include(scripts/show-version.sh)>>
   - run:
       name: Execute yamllint
-      command: yamllint .
+      environment:
+        PARAM_TARGETS: << parameters.targets >>
+      command: <<include(scripts/execute.sh)>>

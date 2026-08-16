@@ -92,6 +92,33 @@ jobs:
 
             echo "yamllint correctly rejected invalid YAML"
 
+  targets-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Create target test files
+          command: |
+            mkdir -p \
+              targets-test/valid \
+              targets-test/invalid
+
+            printf 'foo: bar\n' \
+              > targets-test/valid/first.yml
+
+            printf 'bar: baz\n' \
+              > targets-test/valid/second.yml
+
+            printf 'foo:\n\tbar: baz\n' \
+              > targets-test/invalid/invalid.yml
+      - yamllint/execute:
+          targets: targets-test/valid/
+      - yamllint/execute:
+          targets: |
+            targets-test/valid/first.yml
+            targets-test/valid/second.yml
+
 workflows:
   test-deploy:
     jobs:
@@ -107,6 +134,8 @@ workflows:
           filters: *filters
       - negative-test:
           filters: *filters
+      - targets-test:
+          filters: *filters
       - orb-tools/pack:
           filters: *filters
       - orb-tools/publish:
@@ -121,6 +150,7 @@ workflows:
             - install-command-test
             - install-version-test
             - negative-test
+            - targets-test
           context: CIRCLECI_ORBS
           filters:
             branches:
