@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-16
+
+### Added
+
+- Added the `install` command with support for installing a specific yamllint
+  version.
+- Added integration tests for the install command, version parameter,
+  executor parameters, and lint failure behavior.
+
+### Changed
+
+- Changed the default executor image to `cimg/python:3.14`.
+- Simplified the yamllint version display logic.
+- Updated the README usage example to reference `orbss/yamllint@1.0.0`.
+
+### Fixed
+
+- Fixed the production Orb publishing configuration.
+- Fixed the example executor name.
+- Fixed the README LICENSE link.
+- Fixed the LICENSE copyright information.
+
 ## [0.0.11] - 2026-08-16
 
 ### Fixed
