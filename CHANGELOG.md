@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-08-16
+
+### Changed
+
+- Added `display.home_url` metadata pointing to the yamllint Orb Registry page.
+- Updated the README usage example to reference `orbss/yamllint@1.1.4`.
+
 ## [1.1.3] - 2026-08-16
 
 ### Changed
