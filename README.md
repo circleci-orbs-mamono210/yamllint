@@ -138,3 +138,28 @@ steps:
 
 If `config-file` is not specified, yamllint uses its normal configuration
 discovery behavior.
+
+### Enable strict mode
+
+Set `strict` to `true` to enable yamllint strict mode.
+
+```yaml
+steps:
+  - yamllint/execute:
+      strict: true
+```
+
+When strict mode is enabled, warnings cause yamllint to return a non-zero
+exit status.
+
+The default value of `strict` is `false`.
+
+The `strict` parameter can be combined with `targets` and `config-file`.
+
+```yaml
+steps:
+  - yamllint/execute:
+      targets: .circleci/
+      config-file: .yamllint-ci
+      strict: true
+```

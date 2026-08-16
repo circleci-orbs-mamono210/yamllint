@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the `config-file` parameter to the `execute` command.
 - Added an integration test to verify that a custom yamllint configuration
   file changes lint behavior as expected.
+- Added the `strict` parameter to the `execute` command.
+- Added an integration test to verify that warnings cause a non-zero
+  exit status when strict mode is enabled.
 
 ## [1.0.0] - 2026-08-16
 

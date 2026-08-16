@@ -157,6 +157,88 @@ jobs:
           targets: config-file-test/test.yml
           config-file: config-file-test/yamllint-ci.yml
 
+  strict-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Create strict mode test files
+          command: |
+            mkdir -p strict-test
+
+            printf '%s\n' \
+              'message: this-line-is-longer-than-twenty-characters' \
+              > strict-test/test.yml
+
+            cat > strict-test/yamllint.yml \<<'YAML'
+            extends: default
+
+            rules:
+              line-length:
+                max: 20
+                level: warning
+            YAML
+      - yamllint/execute:
+          targets: strict-test/test.yml
+          config-file: strict-test/yamllint.yml
+          strict: false
+      - run:
+          name: Prepare strict mode verifier
+          command: |
+            REAL_YAMLLINT="$(command -v yamllint)"
+            WRAPPER_DIR="$(pwd)/strict-test/bin"
+
+            mkdir -p "${WRAPPER_DIR}"
+
+            cat > "${WRAPPER_DIR}/yamllint" \<<'BASH'
+            #!/bin/bash
+
+            set -euo pipefail
+
+            if [[ "${1:-}" == "--version" ]]; then
+                exec "${REAL_YAMLLINT}" "$@"
+            fi
+
+            strict_found=false
+
+            for arg in "$@"; do
+                if [[ "${arg}" == "--strict" ]]; then
+                    strict_found=true
+                    break
+                fi
+            done
+
+            if [[ "${strict_found}" != "true" ]]; then
+                echo "Expected --strict to be passed to yamllint" >&2
+                exit 1
+            fi
+
+            set +e
+            "${REAL_YAMLLINT}" "$@"
+            status=$?
+            set -e
+
+            if [[ "${status}" -ne 2 ]]; then
+                echo "Expected yamllint strict mode exit status: 2" >&2
+                echo "Actual exit status: ${status}" >&2
+                exit 1
+            fi
+
+            echo "yamllint strict mode returned expected exit status 2"
+            BASH
+
+            chmod +x "${WRAPPER_DIR}/yamllint"
+
+            echo "export REAL_YAMLLINT=\"${REAL_YAMLLINT}\"" \
+              >> "${BASH_ENV}"
+            echo "export PATH=\"${WRAPPER_DIR}:\${PATH}\"" \
+              >> "${BASH_ENV}"
+      - yamllint/execute:
+          targets: strict-test/test.yml
+          config-file: strict-test/yamllint.yml
+          strict: true
+
 workflows:
   test-deploy:
     jobs:
@@ -176,6 +258,8 @@ workflows:
           filters: *filters
       - config-file-test:
           filters: *filters
+      - strict-test:
+          filters: *filters
       - orb-tools/pack:
           filters: *filters
       - orb-tools/publish:
@@ -192,6 +276,7 @@ workflows:
             - negative-test
             - targets-test
             - config-file-test
+            - strict-test
           context: CIRCLECI_ORBS
           filters:
             branches:

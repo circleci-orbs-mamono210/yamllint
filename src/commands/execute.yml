@@ -15,6 +15,12 @@ parameters:
     description: >
       Path to a yamllint configuration file. If empty, yamllint uses
       its default configuration discovery behavior.
+  strict:
+    type: boolean
+    default: false
+    description: >
+      Enable yamllint strict mode. Warnings cause yamllint to return
+      a non-zero exit status when enabled.
 
 steps:
   - run:
@@ -25,4 +31,5 @@ steps:
       environment:
         PARAM_TARGETS: << parameters.targets >>
         PARAM_CONFIG_FILE: << parameters.config-file >>
+        PARAM_STRICT: << parameters.strict >>
       command: <<include(scripts/execute.sh)>>
