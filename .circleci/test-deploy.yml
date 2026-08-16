@@ -297,8 +297,10 @@ jobs:
                 exit 1
             fi
 
+            set +e
             output="$("${REAL_YAMLLINT}" "$@" 2>&1)"
             status=$?
+            set -e
 
             printf '%s\n' "${output}"
 

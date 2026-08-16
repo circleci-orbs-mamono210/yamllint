@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-16
+
+### Fixed
+
+- Fixed exit status handling in the `format-test` integration test so that
+  yamllint failures can be inspected correctly when `set -e` is enabled.
+
 ## [1.1.0] - 2026-08-16
 
 ### Added
