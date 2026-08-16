@@ -10,7 +10,7 @@ CircleCI Orb for running yamllint.
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@1.1.0
+  yamllint: orbss/yamllint@1.1.2
 
 jobs:
   lint:
@@ -42,7 +42,23 @@ executor:
   image: cimg/python:3.13
 ```
 
-The selected image must provide Python and pip so that the `install` command can install yamllint.
+### Custom image requirements
+
+The selected image must provide the runtime environment required by the Orb.
+
+At minimum, a custom image must provide:
+
+- Bash
+- a `python` command
+- pip available through `python -m pip`
+- a Python environment that allows packages to be installed with pip
+
+The Orb is primarily intended to be used with CircleCI convenience images such
+as `cimg/python`.
+
+Images that provide only `python3`, do not include Bash, or prevent package
+installation with `python -m pip` may require additional setup before using
+this Orb.
 
 ## Install yamllint
 
@@ -186,3 +202,4 @@ steps:
       strict: true
       format: parsable
 ```
+

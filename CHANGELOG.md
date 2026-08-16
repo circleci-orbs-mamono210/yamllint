@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-08-16
+
+### Changed
+
+- Documented the runtime requirements for custom executor images, including
+  Bash, the `python` command, pip, and a Python environment that allows package
+  installation.
+- Clarified that CircleCI `cimg/python` convenience images are the recommended
+  custom executor images.
+- Updated the README usage example to reference `orbss/yamllint@1.1.2`.
+
 ## [1.1.1] - 2026-08-16
 
 ### Fixed
@@ -120,3 +131,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from `<publishing-context>` to `CIRCLECI_ORBS`.
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
+
