@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-08-16
+
+### Changed
+
+- Simplified `show-version.sh` to execute `yamllint --version` directly.
+- Removed the ShellCheck `SC2196` exclusion because `egrep` is no longer used.
+
 ## [0.0.8] - 2026-08-16
 
 ### Added
