@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-16
+
+### Changed
+
+- Added GitHub comparison links for CHANGELOG versions.
+- Added an `[Unreleased]` comparison link from the latest release to `HEAD`.
+- Updated the README usage example to reference `orbss/yamllint@1.1.5`.
+
 ## [1.1.4] - 2026-08-16
 
 ### Changed
@@ -147,4 +155,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from `<publishing-context>` to `CIRCLECI_ORBS`.
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
+
+[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.4...v1.1.5
+[1.1.4]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.3...v1.1.4
+[1.1.3]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.11...v1.0.0
+[0.0.11]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.10...v0.0.11
+[0.0.10]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.9...v0.0.10
+[0.0.9]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.8...v0.0.9
+[0.0.8]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.7...v0.0.8
+[0.0.7]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.6...v0.0.7
+[0.0.6]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v0.0.5...v0.0.6
+[0.0.5]: https://github.com/circleci-orbs-mamono210/yamllint/releases/tag/v0.0.5
 

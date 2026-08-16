@@ -10,7 +10,7 @@ CircleCI Orb for running yamllint.
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@1.1.4
+  yamllint: orbss/yamllint@1.1.5
 
 jobs:
   lint:
