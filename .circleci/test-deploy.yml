@@ -119,6 +119,44 @@ jobs:
             targets-test/valid/first.yml
             targets-test/valid/second.yml
 
+  config-file-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Create config file test files
+          command: |
+            mkdir -p config-file-test
+
+            printf '%s\n' \
+              'message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
+              > config-file-test/test.yml
+
+            cat > config-file-test/yamllint-ci.yml \<<'YAML'
+            extends: default
+
+            rules:
+              line-length: disable
+            YAML
+      - run:
+          name: Verify default configuration rejects test file
+          command: |
+            set +e
+            yamllint config-file-test/test.yml
+            status=$?
+            set -e
+
+            if [[ "${status}" -eq 0 ]]; then
+              echo "Expected default yamllint configuration to reject test file"
+              exit 1
+            fi
+
+            echo "Default configuration correctly rejected test file"
+      - yamllint/execute:
+          targets: config-file-test/test.yml
+          config-file: config-file-test/yamllint-ci.yml
+
 workflows:
   test-deploy:
     jobs:
@@ -136,6 +174,8 @@ workflows:
           filters: *filters
       - targets-test:
           filters: *filters
+      - config-file-test:
+          filters: *filters
       - orb-tools/pack:
           filters: *filters
       - orb-tools/publish:
@@ -151,6 +191,7 @@ workflows:
             - install-version-test
             - negative-test
             - targets-test
+            - config-file-test
           context: CIRCLECI_ORBS
           filters:
             branches:

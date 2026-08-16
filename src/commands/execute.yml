@@ -9,6 +9,12 @@ parameters:
     description: >
       Files or directories to lint. Multiple targets can be specified
       using one target per line.
+  config-file:
+    type: string
+    default: ""
+    description: >
+      Path to a yamllint configuration file. If empty, yamllint uses
+      its default configuration discovery behavior.
 
 steps:
   - run:
@@ -18,4 +24,5 @@ steps:
       name: Execute yamllint
       environment:
         PARAM_TARGETS: << parameters.targets >>
+        PARAM_CONFIG_FILE: << parameters.config-file >>
       command: <<include(scripts/execute.sh)>>

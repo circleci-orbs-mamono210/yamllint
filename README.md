@@ -115,3 +115,26 @@ steps:
 ```
 
 The default value of `targets` is `.`.
+
+### Specify a configuration file
+
+The `config-file` parameter can be used to explicitly specify a yamllint
+configuration file.
+
+```yaml
+steps:
+  - yamllint/execute:
+      config-file: .yamllint-ci
+```
+
+The `config-file` parameter can be combined with `targets`.
+
+```yaml
+steps:
+  - yamllint/execute:
+      targets: .circleci/
+      config-file: .yamllint-ci
+```
+
+If `config-file` is not specified, yamllint uses its normal configuration
+discovery behavior.

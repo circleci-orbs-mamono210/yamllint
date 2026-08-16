@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the `targets` parameter to the `execute` command.
 - Added support for specifying multiple lint targets using one target per line.
 - Added integration tests for the `targets` parameter.
+- Added the `config-file` parameter to the `execute` command.
+- Added an integration test to verify that a custom yamllint configuration
+  file changes lint behavior as expected.
 
 ## [1.0.0] - 2026-08-16
 
