@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-08-16
+
+### Fixed
+
+- Replaced the `<organization>` placeholder in `LICENSE` with
+  `mamono210`.
+- Updated the copyright year range to `2022-2026`.
+
 ## [0.0.10] - 2026-08-16
 
 ### Fixed
