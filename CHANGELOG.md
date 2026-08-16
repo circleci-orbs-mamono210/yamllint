@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-08-16
+
+### Fixed
+
+- Fixed the LICENSE link in `README.md` to reference the `main` branch
+  instead of the non-existent `master` branch.
+
 ## [0.0.9] - 2026-08-16
 
 ### Changed
