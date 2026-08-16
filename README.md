@@ -10,7 +10,7 @@ CircleCI Orb for running yamllint.
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@1.1.2
+  yamllint: orbss/yamllint@1.1.3
 
 jobs:
   lint:
@@ -40,6 +40,35 @@ A custom Docker image can be specified with the `image` parameter.
 executor:
   name: yamllint/default
   image: cimg/python:3.13
+```
+
+### Resource class
+
+The `resource_class` parameter can be used to configure the CircleCI resource
+class for the default executor.
+
+```yaml
+executor:
+  name: yamllint/default
+  resource_class: medium
+```
+
+The default value of `resource_class` is `small`.
+
+The following values are currently supported:
+
+- `small`
+- `medium`
+- `medium+`
+- `large`
+
+The `image` and `resource_class` parameters can be used together.
+
+```yaml
+executor:
+  name: yamllint/default
+  image: cimg/python:3.13
+  resource_class: medium
 ```
 
 ### Custom image requirements
