@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-08-16
+
+### Added
+
+- Added a negative integration test to verify that yamllint returns a
+  non-zero exit status when invalid YAML is detected.
+- Added the negative integration test as a prerequisite for production
+  publishing.
+
 ## [0.0.7] - 2026-08-16
 
 ### Changed
