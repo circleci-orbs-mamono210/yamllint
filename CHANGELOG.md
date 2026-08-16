@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the `strict` parameter to the `execute` command.
 - Added an integration test to verify that warnings cause a non-zero
   exit status when strict mode is enabled.
+- Added the `format` parameter to the `execute` command.
+- Added an integration test to verify that the requested yamllint output
+  format is applied.
 
 ## [1.0.0] - 2026-08-16
 

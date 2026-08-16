@@ -239,6 +239,96 @@ jobs:
           config-file: strict-test/yamllint.yml
           strict: true
 
+  format-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Create format test files
+          command: |
+            mkdir -p format-test
+
+            printf '%s\n' \
+              'message: this-line-is-longer-than-twenty-characters' \
+              > format-test/test.yml
+
+            cat > format-test/yamllint.yml \<<'YAML'
+            extends: default
+
+            rules:
+              line-length:
+                max: 20
+                level: warning
+            YAML
+
+      - run:
+          name: Prepare format verifier
+          command: |
+            REAL_YAMLLINT="$(command -v yamllint)"
+            WRAPPER_DIR="$(pwd)/format-test/bin"
+
+            mkdir -p "${WRAPPER_DIR}"
+
+            cat > "${WRAPPER_DIR}/yamllint" \<<'BASH'
+            #!/bin/bash
+
+            set -euo pipefail
+
+            if [[ "${1:-}" == "--version" ]]; then
+                exec "${REAL_YAMLLINT}" "$@"
+            fi
+
+            format_found=false
+
+            for ((i = 1; i <= $#; i++)); do
+                if [[ "${!i}" == "--format" ]]; then
+                    next=$((i + 1))
+
+                    if [[ "${next}" -le "$#" && "${!next}" == "parsable" ]]; then
+                        format_found=true
+                        break
+                    fi
+                fi
+            done
+
+            if [[ "${format_found}" != "true" ]]; then
+                echo "Expected --format parsable to be passed to yamllint" >&2
+                exit 1
+            fi
+
+            output="$("${REAL_YAMLLINT}" "$@" 2>&1)"
+            status=$?
+
+            printf '%s\n' "${output}"
+
+            if [[ "${status}" -ne 0 ]]; then
+                echo "Expected yamllint exit status: 0" >&2
+                echo "Actual exit status: ${status}" >&2
+                exit 1
+            fi
+
+            if ! printf '%s\n' "${output}" \
+              | grep -Eq '^format-test/test\.yml:[0-9]+:[0-9]+: \[warning\]'; then
+                echo "Expected parsable yamllint output" >&2
+                exit 1
+            fi
+
+            echo "yamllint parsable format verified"
+            BASH
+
+            chmod +x "${WRAPPER_DIR}/yamllint"
+
+            echo "export REAL_YAMLLINT=\"${REAL_YAMLLINT}\"" \
+              >> "${BASH_ENV}"
+            echo "export PATH=\"${WRAPPER_DIR}:\${PATH}\"" \
+              >> "${BASH_ENV}"
+
+      - yamllint/execute:
+          targets: format-test/test.yml
+          config-file: format-test/yamllint.yml
+          format: parsable
+
 workflows:
   test-deploy:
     jobs:
@@ -260,6 +350,8 @@ workflows:
           filters: *filters
       - strict-test:
           filters: *filters
+      - format-test:
+          filters: *filters
       - orb-tools/pack:
           filters: *filters
       - orb-tools/publish:
@@ -277,6 +369,7 @@ workflows:
             - targets-test
             - config-file-test
             - strict-test
+            - format-test
           context: CIRCLECI_ORBS
           filters:
             branches:

@@ -21,6 +21,12 @@ parameters:
     description: >
       Enable yamllint strict mode. Warnings cause yamllint to return
       a non-zero exit status when enabled.
+  format:
+    type: string
+    default: ""
+    description: >
+      Output format passed to yamllint. If empty, yamllint uses
+      its default output format.
 
 steps:
   - run:
@@ -32,4 +38,5 @@ steps:
         PARAM_TARGETS: << parameters.targets >>
         PARAM_CONFIG_FILE: << parameters.config-file >>
         PARAM_STRICT: << parameters.strict >>
+        PARAM_FORMAT: << parameters.format >>
       command: <<include(scripts/execute.sh)>>

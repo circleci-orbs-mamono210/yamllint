@@ -163,3 +163,26 @@ steps:
       config-file: .yamllint-ci
       strict: true
 ```
+
+### Specify an output format
+
+The `format` parameter can be used to specify the yamllint output format.
+
+```yaml
+steps:
+  - yamllint/execute:
+      format: parsable
+```
+
+If `format` is not specified, yamllint uses its default output format.
+
+The `format` parameter can be combined with the other `execute` parameters.
+
+```yaml
+steps:
+  - yamllint/execute:
+      targets: .circleci/
+      config-file: .yamllint-ci
+      strict: true
+      format: parsable
+```

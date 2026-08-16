@@ -21,6 +21,10 @@ case "${PARAM_STRICT:-false}" in
         ;;
 esac
 
+if [[ -n "${PARAM_FORMAT:-}" ]]; then
+    YAMLLINT_ARGS+=("--format" "${PARAM_FORMAT}")
+fi
+
 while IFS= read -r target; do
     if [[ -n "${target}" ]]; then
         TARGETS+=("${target}")
