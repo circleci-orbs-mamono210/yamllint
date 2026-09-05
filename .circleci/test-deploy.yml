@@ -365,7 +365,7 @@ workflows:
           vcs-type: << pipeline.project.type >>
           pub-type: production
           requires:
-            - orb-lint/lint
+            - orb-lint
             - orb-tools/pack
             - command-tests
             - resource-class-test
