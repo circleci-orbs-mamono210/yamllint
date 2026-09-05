@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   yamllint: orbss/yamllint@dev:<<pipeline.git.revision>>
   orb-tools: circleci/orb-tools@11.1
+  orb-lint: orbss/orb-lint@0.0.1
 
 filters: &filters
   tags:
@@ -356,11 +357,15 @@ workflows:
           filters: *filters
       - orb-tools/pack:
           filters: *filters
+      - orb-lint/lint:
+          name: orb-lint
+          filters: *filters
       - orb-tools/publish:
           orb-name: orbss/yamllint
           vcs-type: << pipeline.project.type >>
           pub-type: production
           requires:
+            - orb-lint/lint
             - orb-tools/pack
             - command-tests
             - resource-class-test
