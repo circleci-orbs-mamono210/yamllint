@@ -155,7 +155,7 @@ jobs:
             echo "Default configuration correctly rejected test file"
       - yamllint/execute:
           targets: config-file-test/test.yml
-          config-file: config-file-test/yamllint-ci.yml
+          config_file: config-file-test/yamllint-ci.yml
 
   strict-test:
     docker:
@@ -181,7 +181,7 @@ jobs:
             YAML
       - yamllint/execute:
           targets: strict-test/test.yml
-          config-file: strict-test/yamllint.yml
+          config_file: strict-test/yamllint.yml
           strict: false
       - run:
           name: Prepare strict mode verifier
@@ -236,7 +236,7 @@ jobs:
               >> "${BASH_ENV}"
       - yamllint/execute:
           targets: strict-test/test.yml
-          config-file: strict-test/yamllint.yml
+          config_file: strict-test/yamllint.yml
           strict: true
 
   format-test:
@@ -328,7 +328,7 @@ jobs:
 
       - yamllint/execute:
           targets: format-test/test.yml
-          config-file: format-test/yamllint.yml
+          config_file: format-test/yamllint.yml
           format: parsable
 
 workflows:

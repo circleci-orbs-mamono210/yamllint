@@ -163,25 +163,25 @@ The default value of `targets` is `.`.
 
 ### Specify a configuration file
 
-The `config-file` parameter can be used to explicitly specify a yamllint
+The `config_file` parameter can be used to explicitly specify a yamllint
 configuration file.
 
 ```yaml
 steps:
   - yamllint/execute:
-      config-file: .yamllint-ci
+      config_file: .yamllint-ci
 ```
 
-The `config-file` parameter can be combined with `targets`.
+The `config_file` parameter can be combined with `targets`.
 
 ```yaml
 steps:
   - yamllint/execute:
       targets: .circleci/
-      config-file: .yamllint-ci
+      config_file: .yamllint-ci
 ```
 
-If `config-file` is not specified, yamllint uses its normal configuration
+If `config_file` is not specified, yamllint uses its normal configuration
 discovery behavior.
 
 ### Enable strict mode
@@ -199,13 +199,13 @@ exit status.
 
 The default value of `strict` is `false`.
 
-The `strict` parameter can be combined with `targets` and `config-file`.
+The `strict` parameter can be combined with `targets` and `config_file`.
 
 ```yaml
 steps:
   - yamllint/execute:
       targets: .circleci/
-      config-file: .yamllint-ci
+      config_file: .yamllint-ci
       strict: true
 ```
 
@@ -227,7 +227,7 @@ The `format` parameter can be combined with the other `execute` parameters.
 steps:
   - yamllint/execute:
       targets: .circleci/
-      config-file: .yamllint-ci
+      config_file: .yamllint-ci
       strict: true
       format: parsable
 ```
