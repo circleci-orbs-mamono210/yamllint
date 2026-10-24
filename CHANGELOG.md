@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a v1-to-v2 migration guide with before/after configurations and the
+  `config-file` to `config_file` parameter mapping.
+- Added a combined integration test for `targets`, `config_file`, `strict`,
+  and `format`, checking selected arguments, warning-only strict exit status,
+  parsable output, and command execution.
+- Added single-file target coverage and argument/count checks to the existing
+  directory and multiple-target integration tests.
+- Added an integration-test coverage matrix and release-dependency checks in
+  `.circleci/INTEGRATION_TESTS.md`.
+
+### Changed
+
+- **Breaking:** renamed the `execute` parameter `config-file` to `config_file`
+  without a compatibility alias. The other execute parameters, install
+  behavior, and executor options remain unchanged.
+- Updated the development pipeline from `circleci/orb-tools@11.1` to
+  `circleci/orb-tools@12.5.0` and from `circleci/shellcheck@3.1` to
+  `circleci/shellcheck@3.4.0`, including the v12 parameter names and review
+  Orb name.
+- Switched integration testing to the packed source Orb injected inline by
+  `orb-tools/continue`, after setup lint, pack, review, and ShellCheck succeed.
+- Pinned both pack jobs to `circleci/circleci-cli:1.11.0` using the `orb-pack`
+  executor for the updated CLI validation path.
+- Tightened the invalid-YAML and default-configuration rejection tests to
+  require exit status `1` instead of accepting any non-zero status.
+- Made downstream pack require all eleven integration tests to succeed, and
+  production publish require that pack to succeed. Preserved the release-tag
+  pattern `^v[0-9]+\.[0-9]+\.[0-9]+$`, branch exclusion, and tag reachability of
+  prerequisite jobs. The `CIRCLECI_ORBS` Context is assigned only to production
+  publish.
+- Updated README Usage and the bundled example to target the planned
+  `orbss/yamllint@2.0.0` release, while preserving the minimal install/execute
+  workflow. This entry does not record a completed 2.0.0 publication.
+
+### Removed
+
+- Removed the setup development-publish job and downstream
+  `orbss/yamllint@dev:<<pipeline.git.revision>>` reference; inline source testing
+  no longer depends on publishing a development Orb.
+
+### Development
+
+- Recorded the development probe `.circleci/orb-lint-phase-1-4-fail.yml`, added
+  after v1.1.5 in commit `9a9c3af`. The file is retained unchanged. It is a
+  development artifact, not an Orb feature; its presence does not establish
+  execution or successful verification by the current pipeline.
+
 ## [1.1.5] - 2026-08-16
 
 ### Changed

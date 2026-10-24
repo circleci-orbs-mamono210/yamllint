@@ -1,11 +1,13 @@
 description: >
-  Execute yamllint
+  Install and execute yamllint with the planned v2.0.0 release.
+  The version reference is prepared for use after publication;
+  this example does not indicate that v2.0.0 is already published.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@x.y.z
+    yamllint: orbss/yamllint@2.0.0
 
   jobs:
     execute-yamllint:

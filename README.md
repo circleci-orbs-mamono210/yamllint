@@ -6,11 +6,15 @@ CircleCI Orb for running yamllint.
 
 ## Usage
 
+This example targets the planned `2.0.0` release. The version reference is
+prepared for that release; it does not indicate that `2.0.0` has been published.
+Use this reference after the release is available.
+
 ```yaml
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@1.1.5
+  yamllint: orbss/yamllint@2.0.0
 
 jobs:
   lint:
@@ -25,6 +29,88 @@ workflows:
     jobs:
       - lint
 ```
+
+## Migrating from v1 to v2
+
+Update the Orb reference to `orbss/yamllint@2.0.0` when that release is
+available, and rename the `yamllint/execute` parameter `config-file` to
+`config_file` in every invocation. There is no compatibility alias for
+`config-file` in v2; a configuration that still passes the old name must be
+updated before it can use v2.
+
+The following examples assume `.yamllint-ci` already exists in your repository.
+The v2 example is a migration target for the planned release.
+
+### Before: v1
+
+```yaml
+version: 2.1
+
+orbs:
+  yamllint: orbss/yamllint@1.1.5
+
+jobs:
+  lint:
+    executor: yamllint/default
+    steps:
+      - checkout
+      - yamllint/install
+      - yamllint/execute:
+          targets: .circleci/
+          config-file: .yamllint-ci
+          strict: true
+          format: parsable
+
+workflows:
+  lint:
+    jobs:
+      - lint
+```
+
+### After: v2
+
+```yaml
+version: 2.1
+
+orbs:
+  yamllint: orbss/yamllint@2.0.0
+
+jobs:
+  lint:
+    executor: yamllint/default
+    steps:
+      - checkout
+      - yamllint/install
+      - yamllint/execute:
+          targets: .circleci/
+          config_file: .yamllint-ci
+          strict: true
+          format: parsable
+
+workflows:
+  lint:
+    jobs:
+      - lint
+```
+
+The behavior of the other `execute` parameters is unchanged:
+
+| Parameter | Type | Default | Behavior in v2 |
+| --- | --- | --- | --- |
+| `targets` | string | `.` | Lint a file or directory, or multiple targets with one target per line |
+| `config_file` (v1: `config-file`) | string | `""` | Supply a configuration path; an empty value keeps normal yamllint configuration discovery |
+| `strict` | boolean | `false` | Enable strict mode so warnings produce a non-zero exit status |
+| `format` | string | `""` | Pass an output format to yamllint; an empty value keeps its default format |
+
+`format` remains a string parameter, not an Orb enum. Format values are
+interpreted by the installed yamllint version. The underlying yamllint CLI
+option remains `--config-file`; only the Orb parameter name changes.
+
+The minimum `checkout` → `yamllint/install` → `yamllint/execute` configuration
+shown in Usage is unchanged. If you do not pass `config-file`, no step changes
+are needed when updating the Orb version. The `install.version` parameter,
+executor image and resource-class options, and custom image requirements are
+also unchanged; their details are documented below.
 
 ## Executor
 
@@ -211,7 +297,8 @@ steps:
 
 ### Specify an output format
 
-The `format` parameter can be used to specify the yamllint output format.
+The `format` parameter is a string, with an empty string as its default.
+It can be used to specify the yamllint output format.
 
 ```yaml
 steps:
