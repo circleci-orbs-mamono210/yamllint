@@ -1,8 +1,19 @@
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@dev:<<pipeline.git.revision>>
-  orb-tools: circleci/orb-tools@11.1
+  # The setup workflow injects the packed orb from this revision here.
+  yamllint: {}
+  orb-tools: circleci/orb-tools@12.5.0
+
+executors:
+  orb-pack:
+    docker:
+      - image: circleci/circleci-cli:1.11.0
+    resource_class: medium
+    environment:
+      CIRCLE_TOKEN: dummy
+      CIRCLE_NO_TELEMETRY: "1"
+      CIRCLE_NO_UPDATE_CHECK: "1"
 
 filters: &filters
   tags:
@@ -355,11 +366,12 @@ workflows:
       - format-test:
           filters: *filters
       - orb-tools/pack:
+          executor: orb-pack
           filters: *filters
       - orb-tools/publish:
-          orb-name: orbss/yamllint
-          vcs-type: << pipeline.project.type >>
-          pub-type: production
+          orb_name: orbss/yamllint
+          vcs_type: << pipeline.project.type >>
+          pub_type: production
           requires:
             - orb-tools/pack
             - command-tests
