@@ -82,10 +82,42 @@ shell steps is supplemental evidence, not proof of the Docker executors or a
 successful CircleCI pipeline.
 
 The #5486 inline-injection configuration, pack executors, publishing Context,
-and release filters are preserved. This ticket does not change pack/publish
-dependencies. In particular, the new combined job is not yet in the existing
-publish dependency list: #5488 owns the change to
-all integration tests → pack → publish, including this new job.
+and release filters are preserved. #5488 adds success-only dependencies from
+all eleven integration tests to the downstream `orb-tools/pack`, and from
+that pack to `orb-tools/publish`. The setup pack remains a prerequisite for
+inline injection; it does not wait for downstream tests.
+
+### Release dependency checks (#5488)
+
+The setup `orb-tools/continue` requires lint, setup pack, review, and
+ShellCheck to succeed before injecting the source Orb and continuing.
+Every setup job, integration test, and downstream pack accepts all tags.
+Only production publish receives the `CIRCLECI_ORBS` Context.
+
+| Pipeline input and prerequisite result | Downstream pack | Production publish |
+| --- | --- | --- |
+| Branch or PR; setup and all tests succeed | Runs | Excluded by branch filter |
+| Non-release tag; setup and all tests succeed | Runs | Excluded by tag filter |
+| Release tag; any setup prerequisite fails | Not reached through continue | Not reached |
+| Release tag; any integration test fails or is canceled | Blocked | Blocked |
+| Release tag; all tests succeed, downstream pack fails | Fails | Blocked |
+| Release tag; setup, all tests, and downstream pack succeed | Succeeds | Eligible |
+
+The release tag pattern remains `^v[0-9]+\.[0-9]+\.[0-9]+$`.
+For example, `v2.0.0` matches, while `v2.0.0-rc.1` does not.
+These are static configuration expectations, not evidence that failure or
+release pipelines were executed. Actual publication also depends on the
+existing Context permissions and CircleCI execution environment.
+
+To finish #5488 verification, record the applied commit and the exact
+configuration-expansion tool/version/command, retain source and fully
+processed setup/downstream configurations, and compare their dependencies
+and filters. Packing the Orb, injecting it, or resolving YAML anchors alone
+is not a full CircleCI configuration expansion. If the processed view is
+event-filtered, also retain a processed view that includes the release path;
+a branch-only result without publish cannot verify that path.
+Until this comparison is recorded, #5488 AC4 remains incomplete.
+Do not create a release tag just to test these dependencies.
 The v2.0.0 release remains a later task (#5490).
 
 Reference for exit codes:

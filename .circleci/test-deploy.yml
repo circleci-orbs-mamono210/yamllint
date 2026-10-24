@@ -593,12 +593,8 @@ workflows:
       - orb-tools/pack:
           executor: orb-pack
           filters: *filters
-      - orb-tools/publish:
-          orb_name: orbss/yamllint
-          vcs_type: << pipeline.project.type >>
-          pub_type: production
+          # Every integration test must succeed before packaging for publication.
           requires:
-            - orb-tools/pack
             - command-tests
             - resource-class-test
             - custom-image-test
@@ -609,6 +605,13 @@ workflows:
             - config-file-test
             - strict-test
             - format-test
+            - combined-parameters-test
+      - orb-tools/publish:
+          orb_name: orbss/yamllint
+          vcs_type: << pipeline.project.type >>
+          pub_type: production
+          requires:
+            - orb-tools/pack
           context: CIRCLECI_ORBS
           filters:
             branches:
