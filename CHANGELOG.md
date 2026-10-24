@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-24
+
 ### Added
 
 - Added a v1-to-v2 migration guide with before/after configurations and the
@@ -39,9 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pattern `^v[0-9]+\.[0-9]+\.[0-9]+$`, branch exclusion, and tag reachability of
   prerequisite jobs. The `CIRCLECI_ORBS` Context is assigned only to production
   publish.
-- Updated README Usage and the bundled example to target the planned
-  `orbss/yamllint@2.0.0` release, while preserving the minimal install/execute
-  workflow. This entry does not record a completed 2.0.0 publication.
+- Updated README Usage and the bundled example to use
+  `orbss/yamllint@2.0.0`, while preserving the minimal install/execute
+  workflow.
 
 ### Removed
 
@@ -205,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
 
-[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...v2.0.0
 [1.1.5]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.2...v1.1.3

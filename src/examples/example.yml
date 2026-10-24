@@ -1,7 +1,5 @@
 description: >
-  Install and execute yamllint with the planned v2.0.0 release.
-  The version reference is prepared for use after publication;
-  this example does not indicate that v2.0.0 is already published.
+  Install and execute yamllint with v2.0.0.
 
 usage:
   version: 2.1

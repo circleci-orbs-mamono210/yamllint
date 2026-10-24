@@ -6,9 +6,7 @@ CircleCI Orb for running yamllint.
 
 ## Usage
 
-This example targets the planned `2.0.0` release. The version reference is
-prepared for that release; it does not indicate that `2.0.0` has been published.
-Use this reference after the release is available.
+The following example uses `orbss/yamllint@2.0.0`.
 
 ```yaml
 version: 2.1
@@ -32,14 +30,13 @@ workflows:
 
 ## Migrating from v1 to v2
 
-Update the Orb reference to `orbss/yamllint@2.0.0` when that release is
-available, and rename the `yamllint/execute` parameter `config-file` to
-`config_file` in every invocation. There is no compatibility alias for
-`config-file` in v2; a configuration that still passes the old name must be
-updated before it can use v2.
+Update the Orb reference to `orbss/yamllint@2.0.0`, and rename the
+`yamllint/execute` parameter `config-file` to `config_file` in every
+invocation. There is no compatibility alias for `config-file` in v2;
+a configuration that still passes the old name must be updated before
+it can use v2.
 
 The following examples assume `.yamllint-ci` already exists in your repository.
-The v2 example is a migration target for the planned release.
 
 ### Before: v1
 
