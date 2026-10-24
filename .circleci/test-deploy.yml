@@ -96,8 +96,9 @@ jobs:
             status=$?
             set -e
 
-            if [[ "${status}" -eq 0 ]]; then
-              echo "Expected yamllint to fail for invalid YAML"
+            if [[ "${status}" -ne 1 ]]; then
+              echo "Expected yamllint exit status 1 for invalid YAML"
+              echo "Actual exit status: ${status}"
               exit 1
             fi
 
@@ -123,12 +124,77 @@ jobs:
 
             printf 'foo:\n\tbar: baz\n' \
               > targets-test/invalid/invalid.yml
+      - run:
+          name: Prepare target selection verifier
+          command: |
+            REAL_YAMLLINT="$(command -v yamllint)"
+            WRAPPER_DIR="$(pwd)/targets-test/bin"
+
+            mkdir -p "${WRAPPER_DIR}"
+            printf '%s\n' 'targets-test/valid/' \
+              > targets-test/expected-targets.txt
+            : > targets-test/verified-calls.txt
+
+            cat > "${WRAPPER_DIR}/yamllint" \<<'BASH'
+            #!/bin/bash
+
+            set -euo pipefail
+
+            if [[ "${1:-}" == "--version" ]]; then
+                exec "${REAL_YAMLLINT}" "$@"
+            fi
+
+            mapfile -t expected < targets-test/expected-targets.txt
+            actual=("$@")
+
+            if [[ "${#actual[@]}" -ne "${#expected[@]}" ]]; then
+                echo "Unexpected number of targets passed to yamllint" >&2
+                exit 1
+            fi
+
+            for index in "${!expected[@]}"; do
+                if [[ "${actual[index]}" != "${expected[index]}" ]]; then
+                    echo "Unexpected target at index ${index}" >&2
+                    exit 1
+                fi
+            done
+
+            "${REAL_YAMLLINT}" "${actual[@]}"
+            printf '%s\n' "${actual[*]}" >> targets-test/verified-calls.txt
+            BASH
+
+            chmod +x "${WRAPPER_DIR}/yamllint"
+            echo "export REAL_YAMLLINT=\"${REAL_YAMLLINT}\"" \
+              >> "${BASH_ENV}"
+            echo "export PATH=\"${WRAPPER_DIR}:\${PATH}\"" \
+              >> "${BASH_ENV}"
       - yamllint/execute:
           targets: targets-test/valid/
+      - run:
+          name: Select a single file
+          command: |
+            printf '%s\n' 'targets-test/valid/first.yml' \
+              > targets-test/expected-targets.txt
+      - yamllint/execute:
+          targets: targets-test/valid/first.yml
+      - run:
+          name: Select multiple files
+          command: |
+            printf '%s\n' \
+              'targets-test/valid/first.yml' \
+              'targets-test/valid/second.yml' \
+              > targets-test/expected-targets.txt
       - yamllint/execute:
           targets: |
             targets-test/valid/first.yml
             targets-test/valid/second.yml
+      - run:
+          name: Verify all target selection cases ran
+          command: |
+            if [[ "$(wc -l < targets-test/verified-calls.txt)" -ne 3 ]]; then
+              echo "Expected three verified yamllint invocations" >&2
+              exit 1
+            fi
 
   config-file-test:
     docker:
@@ -158,8 +224,9 @@ jobs:
             status=$?
             set -e
 
-            if [[ "${status}" -eq 0 ]]; then
-              echo "Expected default yamllint configuration to reject test file"
+            if [[ "${status}" -ne 1 ]]; then
+              echo "Expected exit status 1 with the default configuration"
+              echo "Actual exit status: ${status}"
               exit 1
             fi
 
@@ -342,6 +409,162 @@ jobs:
           config_file: format-test/yamllint.yml
           format: parsable
 
+  combined-parameters-test:
+    docker:
+      - image: cimg/python:3.14
+    steps:
+      - yamllint/install
+      - run:
+          name: Create combined parameter fixtures
+          command: |
+            mkdir -p combined-test/selected combined-test/unselected
+
+            printf '%s\n' '---' \
+              'message: first-line-is-longer-than-twenty-characters' \
+              > combined-test/selected/first.yml
+            printf '%s\n' '---' \
+              'message: second-line-is-longer-than-twenty-characters' \
+              > combined-test/selected/second.yml
+            printf 'foo:\n\tbar: baz\n' \
+              > combined-test/unselected/invalid.yml
+
+            cat > combined-test/yamllint.yml \<<'YAML'
+            extends: default
+
+            rules:
+              line-length:
+                max: 20
+                level: warning
+            YAML
+      - run:
+          name: Verify combined fixture controls
+          command: |
+            # The selected files are clean under the default configuration.
+            yamllint --strict --format parsable \
+              combined-test/selected/first.yml \
+              combined-test/selected/second.yml
+
+            # Including the unselected file must produce an error, not a warning.
+            set +e
+            yamllint --config-file combined-test/yamllint.yml \
+              --strict --format parsable combined-test/unselected/invalid.yml
+            status=$?
+            set -e
+
+            if [[ "${status}" -ne 1 ]]; then
+              echo "Expected exit status 1 for the unselected invalid fixture" >&2
+              echo "Actual exit status: ${status}" >&2
+              exit 1
+            fi
+      - run:
+          name: Prepare combined parameter verifier
+          command: |
+            REAL_YAMLLINT="$(command -v yamllint)"
+            WRAPPER_DIR="$(pwd)/combined-test/bin"
+            mkdir -p "${WRAPPER_DIR}"
+
+            cat > "${WRAPPER_DIR}/yamllint" \<<'BASH'
+            #!/bin/bash
+
+            set -euo pipefail
+
+            if [[ "${1:-}" == "--version" ]]; then
+                exec "${REAL_YAMLLINT}" "$@"
+            fi
+
+            args=("$@")
+            config_file=""
+            strict=false
+            output_format=""
+            targets=()
+
+            while [[ "$#" -gt 0 ]]; do
+                case "$1" in
+                    --config-file)
+                        [[ "$#" -ge 2 && -z "${config_file}" ]] || exit 1
+                        config_file="$2"
+                        shift 2
+                        ;;
+                    --strict)
+                        [[ "${strict}" == false ]] || exit 1
+                        strict=true
+                        shift
+                        ;;
+                    --format)
+                        [[ "$#" -ge 2 && -z "${output_format}" ]] || exit 1
+                        output_format="$2"
+                        shift 2
+                        ;;
+                    --*)
+                        echo "Unexpected option: $1" >&2
+                        exit 1
+                        ;;
+                    *)
+                        targets+=("$1")
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ "${config_file}" != "combined-test/yamllint.yml" \
+                || "${strict}" != true || "${output_format}" != parsable ]]; then
+                echo "Expected config_file, strict and format together" >&2
+                exit 1
+            fi
+
+            if [[ "${#targets[@]}" -ne 2 \
+                || "${targets[0]}" != "combined-test/selected/first.yml" \
+                || "${targets[1]}" != "combined-test/selected/second.yml" ]]; then
+                echo "Expected exactly the two selected targets" >&2
+                exit 1
+            fi
+
+            set +e
+            output="$("${REAL_YAMLLINT}" "${args[@]}" 2>&1)"
+            status=$?
+            set -e
+            printf '%s\n' "${output}"
+
+            if [[ "${status}" -ne 2 ]]; then
+                echo "Expected warning-only strict exit status 2" >&2
+                echo "Actual exit status: ${status}" >&2
+                exit 1
+            fi
+
+            for target in first second; do
+                if ! printf '%s\n' "${output}" \
+                    | grep -Eq "^combined-test/selected/${target}\\.yml:[0-9]+:[0-9]+: \\[warning\\]"; then
+                    echo "Missing parsable warning for ${target}.yml" >&2
+                    exit 1
+                fi
+            done
+
+            if printf '%s\n' "${output}" \
+                | grep -Ev '^combined-test/selected/(first|second)\.yml:[0-9]+:[0-9]+: \[warning\] .+ \(line-length\)$'; then
+                echo "Unexpected output or unselected target was linted" >&2
+                exit 1
+            fi
+
+            touch combined-test/verified
+            echo "Combined parameters verified; expected exit status 2 captured"
+            BASH
+
+            chmod +x "${WRAPPER_DIR}/yamllint"
+            echo "export REAL_YAMLLINT=\"${REAL_YAMLLINT}\"" \
+              >> "${BASH_ENV}"
+            echo "export PATH=\"${WRAPPER_DIR}:\${PATH}\"" \
+              >> "${BASH_ENV}"
+      - yamllint/execute:
+          targets: |
+            combined-test/selected/first.yml
+            combined-test/selected/second.yml
+          config_file: combined-test/yamllint.yml
+          strict: true
+          format: parsable
+      - run:
+          name: Verify combined command actually ran
+          command: test -f combined-test/verified
+
 workflows:
   test-deploy:
     jobs:
@@ -364,6 +587,8 @@ workflows:
       - strict-test:
           filters: *filters
       - format-test:
+          filters: *filters
+      - combined-parameters-test:
           filters: *filters
       - orb-tools/pack:
           executor: orb-pack
