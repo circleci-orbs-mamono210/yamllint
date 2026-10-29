@@ -5,8 +5,17 @@ set -euo pipefail
 YAMLLINT_ARGS=()
 TARGETS=()
 
+# Keep configuration validation before argument construction and any body call.
+# Both normal lint and future file-listing modes share this input contract.
+if [[ -n "${PARAM_CONFIG_FILE}" && -n "${PARAM_CONFIG_DATA:-}" ]]; then
+    printf '%s\n' "yamllint Orb: config_file and config_data cannot both be non-empty." >&2
+    exit 2
+fi
+
 if [[ -n "${PARAM_CONFIG_FILE}" ]]; then
     YAMLLINT_ARGS+=("--config-file" "${PARAM_CONFIG_FILE}")
+elif [[ -n "${PARAM_CONFIG_DATA:-}" ]]; then
+    YAMLLINT_ARGS+=("--config-data" "${PARAM_CONFIG_DATA}")
 fi
 
 case "${PARAM_STRICT:-false}" in

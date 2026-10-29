@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `execute.config_data` string parameter (default: empty) to pass
+  YAML configuration or an upstream configuration name as one literal
+  argument. Empty values retain the existing configuration discovery or
+  `config_file` behavior; non-empty values are interpreted by yamllint.
+- Reject non-empty `config_file` and `config_data` used together with exit
+  status `2` and an Orb diagnostic on stderr before the lint invocation.
+  The separate version-display step may still run before this validation.
+
 ### Changed
 
 - Treat each non-empty line of `targets` as a literal file or directory path,

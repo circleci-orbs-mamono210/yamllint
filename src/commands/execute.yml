@@ -13,8 +13,18 @@ parameters:
     type: string
     default: ""
     description: >
-      Path to a yamllint configuration file. If empty, yamllint uses
-      its default configuration discovery behavior.
+      Path to a yamllint configuration file. Mutually exclusive with
+      config_data. If both are empty, yamllint uses its default
+      configuration discovery behavior.
+  config_data:
+    type: string
+    default: ""
+    description: >
+      YAML configuration or a configuration name interpreted by yamllint
+      (for example, relaxed). Empty means unspecified. Non-empty values
+      are passed unchanged as one argument, including newlines and quotes.
+      Mutually exclusive with config_file; specifying both returns exit
+      status 2 with an Orb diagnostic before the lint invocation.
   strict:
     type: boolean
     default: false
@@ -37,6 +47,7 @@ steps:
       environment:
         PARAM_TARGETS: << parameters.targets >>
         PARAM_CONFIG_FILE: << parameters.config_file >>
+        PARAM_CONFIG_DATA: << parameters.config_data >>
         PARAM_STRICT: << parameters.strict >>
         PARAM_FORMAT: << parameters.format >>
       command: <<include(scripts/execute.sh)>>

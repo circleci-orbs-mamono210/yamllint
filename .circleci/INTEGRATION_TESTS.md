@@ -1,3 +1,47 @@
+## Phase 2 configuration-data checks (#5494)
+
+`execute.config_data` is a string with an empty default. Empty values omit
+`--config-data`; non-empty values are passed as one unchanged argument.
+Both settings empty preserve discovery, and `config_file` alone preserves
+file selection. Setting both to non-empty values returns status `2` with
+`yamllint Orb: config_file and config_data cannot both be non-empty.` on
+stderr, before the lint body is called. The version-display step is separate.
+
+Run from the repository root in a Python environment with yamllint installed:
+
+```bash
+python3 .circleci/test-config-data.py -v
+python3 .circleci/test-target-boundaries.py -v
+```
+
+The new suite requires Python 3.8+, Bash, PyYAML and actual yamllint in the
+same Python environment. Missing yamllint fails the suite; dependencies are
+not installed automatically. The Phase 1 suite additionally needs Bash 4+
+for the existing CI shims, so macOS users should select that Bash on `PATH`.
+
+| Acceptance criterion | Verification in `test-config-data.py` |
+| --- | --- |
+| AC1: one literal argument and effective configuration | Exact argv for multiline quoted YAML; real default-failure/config-success control |
+| AC2: empty means omitted; non-empty is not normalized | Empty and unset cases; whitespace, newline, tab and other literal values |
+| AC3: discovery and config-file behavior | Real local `.yamllint` discovery and explicit file overriding discovery |
+| AC4: pre-execution conflict refusal | Child execution of the actual script; parent asserts status 2, Orb stderr and zero body calls |
+| AC5: upstream owns interpretation and exit results | Same installed version invoked directly and through the script; compare status, stdout and stderr for malformed YAML, unknown rules, `relaxed`, whitespace and scalar inputs |
+| AC6: refusal verifier detects faults | Execute five temporary mutants: success, wrong status, absent diagnostic, stdout-only diagnostic, and body invocation |
+| AC7: no shell reevaluation | Exact argv and absence of side-effect files for shell metacharacters, including a real upstream case |
+
+The suite also checks source parameter wiring and strict/parsable warning
+behavior. Real-upstream output includes the installed version and Python
+version. Assertions compare against the same installed upstream instead of
+fixing its full diagnostics across versions. Invalid syntax and an unknown
+rule must fail; arbitrary non-empty strings need only retain upstream behavior.
+
+Configuration conflict validation is common input validation, before option
+construction and the body call. #5496 owns list-files wiring and its refusal
+checks. #5492 owns the mandatory CI integration, fixed release matrix,
+packed-Orb/expanded-config comparisons, and publication dependencies.
+These local checks do not establish a CircleCI run, the cimg/python matrix,
+or verification of a published Orb. #5497 owns the complete user documentation.
+
 ## Phase 1 target-boundary checks (#5491)
 
 The source change adds `--` between the Orb options and literal target paths.
