@@ -1,0 +1,31 @@
+description: >
+  List upstream-selected YAML paths in the repository without linting.
+  Success does not prove existence, readability, valid YAML or lint success.
+  Prepared for v2.1.0; use this registry reference after publication.
+
+usage:
+  version: 2.1
+
+  orbs:
+    yamllint: orbss/yamllint@2.1.0
+
+  jobs:
+    list-yaml:
+      executor: yamllint/default
+      steps:
+        - checkout
+        - yamllint/install:
+            version: "1.37.1"
+        - yamllint/execute:
+            targets: .
+            config_data: |
+              extends: relaxed
+              yaml-files: ['*.yml', '*.yaml']
+              ignore: |
+                vendor/
+            list_files: true
+
+  workflows:
+    selected-files:
+      jobs:
+        - list-yaml

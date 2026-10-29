@@ -1,11 +1,13 @@
 description: >
-  Install and execute yamllint with v2.0.0.
+  Minimal install and execute configuration prepared for v2.1.0.
+  Use the registry reference after publication; development checks use
+  the source Orb injected inline, not a published v2.1.0 claim.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.0.0
+    yamllint: orbss/yamllint@2.1.0
 
   jobs:
     execute-yamllint:

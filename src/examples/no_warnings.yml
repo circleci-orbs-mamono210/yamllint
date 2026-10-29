@@ -1,0 +1,43 @@
+description: >
+  Hide warnings while keeping upstream exit behavior. This warning-only
+  fixture succeeds with strict false; changing strict to true returns 2
+  even with no warning output. Prepared for v2.1.0, after publication.
+
+usage:
+  version: 2.1
+
+  orbs:
+    yamllint: orbss/yamllint@2.1.0
+
+  jobs:
+    warning-display:
+      executor: yamllint/default
+      steps:
+        - checkout
+        - yamllint/install:
+            version: "1.37.1"
+        - run:
+            name: Create a warning-only fixture
+            command: |
+              python - \<<'PY'
+              from pathlib import Path
+              Path("warning-example.yml").write_text(
+                  "---\nmessage: " + "word " * 12 + "end\n"
+              )
+              PY
+        - yamllint/execute:
+            targets: warning-example.yml
+            config_data: |
+              extends: default
+              rules:
+                line-length:
+                  max: 30
+                  level: warning
+            strict: false
+            no_warnings: true
+            format: parsable
+
+  workflows:
+    hide-warnings:
+      jobs:
+        - warning-display

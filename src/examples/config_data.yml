@@ -1,0 +1,31 @@
+description: >
+  Pass multiline YAML or the upstream name relaxed with config_data.
+  Empty config_data means unspecified; leave config_file empty when
+  supplying data. Prepared for v2.1.0; use this reference after publication.
+
+usage:
+  version: 2.1
+
+  orbs:
+    yamllint: orbss/yamllint@2.1.0
+
+  jobs:
+    lint-with-data:
+      executor: yamllint/default
+      steps:
+        - checkout
+        - yamllint/install:
+            version: "1.37.1"
+        - yamllint/execute:
+            config_data: |
+              extends: relaxed
+              rules:
+                line-length:
+                  max: 200
+        - yamllint/execute:
+            config_data: relaxed
+
+  workflows:
+    configuration-data:
+      jobs:
+        - lint-with-data

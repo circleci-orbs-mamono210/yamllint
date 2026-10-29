@@ -1,0 +1,36 @@
+description: >
+  Pass hyphen-leading names as literal paths after the CLI boundary.
+  Use ./- for a file named -; a standalone - is refused in both modes.
+  Prepared for v2.1.0; use this registry reference after publication.
+
+usage:
+  version: 2.1
+
+  orbs:
+    yamllint: orbss/yamllint@2.1.0
+
+  jobs:
+    literal-paths:
+      executor: yamllint/default
+      steps:
+        - checkout
+        - yamllint/install:
+            version: "1.37.1"
+        - run:
+            name: Create literal path fixtures
+            command: |
+              python - \<<'PY'
+              from pathlib import Path
+              for name in ("-example.yml", "-"):
+                  Path(name).write_text("---\nmessage: valid\n")
+              PY
+        - yamllint/execute:
+            targets: |
+              -example.yml
+              ./-
+            config_data: relaxed
+
+  workflows:
+    literal-targets:
+      jobs:
+        - literal-paths

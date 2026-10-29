@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Prepared for v2.1.0. The entries below describe source changes, not a
+publication or published-consumer verification result. #5493 finalizes the
+release version/date and comparison links as part of release candidate preparation.
+
 ### Added
 
 - Add the `execute.list_files` boolean parameter (default: `false`) to print
@@ -22,8 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   argument. Empty values retain the existing configuration discovery or
   `config_file` behavior; non-empty values are interpreted by yamllint.
 - Reject non-empty `config_file` and `config_data` used together with exit
-  status `2` and an Orb diagnostic on stderr before the lint invocation.
+  status `2` and an Orb diagnostic on stderr before the lint/listing invocation.
   The separate version-display step may still run before this validation.
+- Document the complete API, four configuration-selection cases, warning
+  display versus exit status, listing limitations and the verified four-pair
+  scope. Add v2.1.0-prepared examples for configuration data, hidden warnings,
+  listing and literal target paths; keep the minimal example.
+- Explain pre-publication refusal/embedding checks separately from planned
+  published-consumer checks. Distinguish RC011's example/tag major check from
+  full README/example/CHANGELOG version consistency.
 
 ### Changed
 
@@ -41,10 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use the dedicated Orb parameters to set options. Empty lines are still
   ignored, and an empty target list still defaults to `.`.
 - Reject a target line equal to `-` with exit status `2` and an Orb diagnostic
-  on stderr before the lint invocation. This changes the previous behavior
+  on stderr before the lint/listing invocation. This changes the previous behavior
   that could reach yamllint's stdin mode. Use `./-` to lint a file named `-`;
   a stdin interface is not provided. The separate version-display step may
   still run before this validation.
+
+The target interpretation changes above are the v2.1.0 adoption recorded in
+#5491, not a claim of no compatibility impact. Ordinary file/directory use
+with the new parameters omitted retains the existing workflow. An invalid
+`strict` value remains an Orb input error. Status `2` also occurs for upstream
+strict warnings and argument errors (for example, invalid `format`), so the
+code alone does not identify the cause. Listing still validates inputs;
+valid `strict`, `no_warnings` and `format` do not change its selected paths.
+File-pattern differences between upstream 1.37.1 and 1.38.0 are preserved.
 
 ## [2.0.0] - 2026-10-24
 

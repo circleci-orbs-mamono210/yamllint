@@ -1,3 +1,47 @@
+# Integration coverage and release evidence
+
+The public API and migration guide are in [README.md](../README.md); complete
+usage examples are under [src/examples](../src/examples/). The feature sections
+below describe test ownership and assertions. Running those suites locally
+is supplementary; the following recorded CircleCI run establishes the
+integrated source-Orb result for its exact revision.
+
+## Verified Phase 5 source baseline
+
+Reviewed on 2026-10-29 for #5492 and the #5497 documentation handoff:
+
+- Source: [9bdc52b627986e18a6da4ba02c8a621387f554e1](https://github.com/circleci-orbs-mamono210/yamllint/commit/9bdc52b627986e18a6da4ba02c8a621387f554e1).
+- CircleCI pipeline identity: `fe2ed4d1-9df3-4e44-8273-a4f7c82d2f8a`.
+- All 20 reported CircleCI commit checks succeeded, including the original
+  eleven jobs, four compatibility jobs, continue and downstream pack.
+- [Continue 1582](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1582)
+  retained `phase5-config/`: source/packed/expanded comparisons passed and
+  all 16 configuration fault-control test methods passed.
+- [Downstream pack 1598](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1598)
+  succeeded. This is source verification, not a production-publish result.
+
+| Compatibility job | yamllint | Configured image | Actual Python | Test methods |
+| --- | --- | --- | --- | --- |
+| [1584](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1584) | 1.37.1 | cimg/python:3.13 | 3.13.18 | 43 |
+| [1592](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1592) | 1.37.1 | cimg/python:3.14 | 3.14.10 | 43 |
+| [1591](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1591) | 1.38.0 | cimg/python:3.13 | 3.13.18 | 43 |
+| [1593](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1593) | 1.38.0 | cimg/python:3.14 | 3.14.10 | 57 |
+
+All four recorded pathspec `1.1.1` and PyYAML `6.0.3`. The total is 186 test
+methods plus their subtests. Each job also passed the actual inline default
+execute step after its suites. The 57-method job includes the 14 Phase 1
+methods; the other suites contribute 15 + 9 + 16 + 3 methods in each pair.
+The original default-install jobs resolved yamllint `1.38.0`; the separate
+`install-version-test` resolved the explicitly requested `1.37.1`.
+These are observed versions, not permanent pins or promises about later runs.
+
+The artifacts' revision/source hashes, runtime identity, suite logs and final
+job statuses were checked together; metadata alone is not a passing result.
+This recorded baseline predates the #5497 documentation/example edits.
+It does not establish CI success for those edits, a release candidate, or
+`orbss/yamllint@2.1.0` downloaded from the registry. Run the affected checks
+for the documentation commit and all required checks for the final RC.
+
 ## Phase 5 integration and release gates (#5492)
 
 The configuration adds four mandatory `compatibility-tests` instances while
@@ -118,11 +162,6 @@ scope table and CI evidence to #5497 and #5493. A later source/config change
 requires the affected checks to run again. This does not establish publication
 or published-Orb acceptance.
 
-The #5492 child-ticket table is still a placeholder in the retrieved ticket
-and no children were returned. This implementation does not settle that
-administrative scope or mark AC8 complete; confirm the child list separately
-before deciding to close #5492.
-
 For supplemental local runs, install each required yamllint version and run:
 
 ```bash
@@ -194,9 +233,10 @@ Listing success is not proof of existence, readability, YAML validity or lint
 success. Upstream argument and configuration validation still runs, and its
 errors are propagated. Valid `strict`, `format` and `no_warnings` do not
 change listing results; the `no_warnings` integration is owned by #5492.
-These are source/local checks. #5492 owns the fixed cimg/python compatibility
-matrix, mandatory CI wiring, packed/expanded execution and release dependencies;
-handoff must identify the exact integrated revision and rerun these cases.
+Manual runs of this suite are source/local checks. Phase 5 also runs it in
+all four fixed CI pairs; the recorded baseline above identifies the integrated
+revision and results. #5492 owns the matrix, mandatory CI wiring,
+packed/expanded checks and release dependencies.
 #5497 owns the full user documentation and #5493 owns publication.
 
 ## Phase 3 warning-display checks (#5495)
@@ -235,7 +275,8 @@ the verifier's success conversion, checking the Orb's real exit status.
 Negative controls demonstrate detection of unexpected success, wrong status,
 missing or extra output, changed arguments and no invocation. The suite also
 checks source parameter wiring, `config_data`, and multiple selected targets.
-These local checks do not establish a CircleCI run or a published-Orb result.
+Manual runs do not establish a CircleCI run or a published-Orb result.
+Phase 5 executes this suite in all four CI pairs, as recorded above.
 #5492 owns the fixed cimg/python compatibility matrix, CI integration,
 `strict`/`format` and `list_files` integration, and publication dependencies.
 #5497 owns the complete user documentation; #5493 owns publication.
@@ -281,8 +322,9 @@ Configuration conflict validation is common input validation, before option
 construction and the body call. #5496 owns list-files wiring and its refusal
 checks. #5492 owns the mandatory CI integration, fixed release matrix,
 packed-Orb/expanded-config comparisons, and publication dependencies.
-These local checks do not establish a CircleCI run, the cimg/python matrix,
-or verification of a published Orb. #5497 owns the complete user documentation.
+Manual runs do not establish a CircleCI run, the cimg/python matrix,
+or verification of a published Orb. Phase 5 executes this suite in all four
+CI pairs, as recorded above. #5497 owns the complete user documentation.
 
 ## Phase 1 target-boundary checks (#5491)
 
@@ -318,11 +360,80 @@ target values, and calls that never ran. It preserves the separate `--version`
 path. These are local assertions using controlled executables; they do not
 establish that CircleCI or real yamllint passed.
 
-Actual yamllint probes must separately record the version, Python version,
-tested source, inputs, status and output. Phase 5 (#5492) owns adding the new
-rejection checks to the mandatory CI and publication dependencies. Phase 4
-(#5496) owns connecting and testing list-files mode. Neither is implemented
-by this Phase 1 change. The historical v2.0.0 coverage record follows.
+Actual yamllint probes separately record the version, Python version,
+tested source, inputs, status and output. Phase 5 (#5492) integrates these
+rejection checks into the mandatory CI and publication dependencies; Phase 4
+(#5496) supplies list-files mode and its refusal checks. The integrated
+results are recorded above. The historical v2.0.0 coverage record follows.
+
+## Phase 6 documentation and Phase 7 handoff (#5497 / #5493)
+
+The README describes the adopted #5491 behavior changes; #5497 does not
+redefine that adoption or the Phase 2/3/4 contracts. The examples preserve
+the minimum workflow and add data/name configuration, warning suppression,
+listing and literal paths including `./-`. Their `orbss/yamllint@2.1.0`
+references are prepared release usage, not evidence of registry availability.
+
+### Documentation verification
+
+Check all public types/defaults against `src/commands/execute.yml`,
+`src/commands/install.yml` and `src/executors/default.yml`. Cross-check the
+four configuration-selection cases, warning/strict status table, listing's
+non-guarantees, valid and invalid parameter handling, literal target migration
+and overlapping status `2` explanations against the source and feature suites.
+Do not infer a unique failure cause from the exit code alone.
+
+Pack the source including **all** examples, extract each example's `usage`,
+and substitute the packed Orb inline for local configuration processing.
+Process each with the official CircleCI CLI and inspect parameter delivery.
+That substitution verifies the source example, not resolution of the prepared
+registry reference. Keep local replay, actual CircleCI success and published
+consumer success as separate results. Documentation changes can affect the
+packed Orb because it contains examples; use a newly packed artifact for the
+final candidate even when scripts and command definitions are unchanged.
+
+### Pre-publication versus published-consumer scope
+
+| Check | Pre-publication source CI | Required published-consumer check in #5493 |
+| --- | --- | --- |
+| Standalone `-`; both settings non-empty | Both modes: child script, status `2`, Orb stderr, zero body calls | Direct refusal execution is outside the mandatory scope |
+| Invalid `strict` reaching the script | Existing Phase 1 source refusal; public parameter remains boolean | Not a new required failing consumer job |
+| Script embedding / parameter delivery | Same revision's packed Orb and expanded config | Trace through equality of the published Orb and verified packed Orb |
+| Minimum workflow and `config_file` | Existing jobs plus fixed-version counterparts | Direct registry Orb execution |
+| `config_data` effect | Default/configuration controls and combinations | Direct registry Orb execution with an effective setting |
+| `no_warnings` and `strict` | Actual upstream status and output assertions | Direct registry Orb execution of representative combinations |
+| Listing and accepted paths | Fixed-pair selection, literal and hyphen-leading targets | Direct registry Orb listing and accepted boundary cases |
+
+Expected upstream nonzero results, including strict warnings, are verified
+with real yamllint and a shim that checks the exact status and required output
+before reporting test success. Do not unconditionally swallow failures.
+The body-not-invoked guarantee excludes the separate version-display step.
+
+The independent consumer configuration must reference the published
+`orbss/yamllint@2.1.0` directly. It must not use setup/continue, inline
+injection, source-Orb substitution, publish or the publishing Context. If a
+dedicated verification branch is used, do not merge its consumer-only config
+into main. Refusal evidence is traced from pre-publication CI through the
+packed/expanded comparison and published-artifact equality; do not describe
+it as direct published-Orb refusal execution.
+
+### Release finalization owned by #5493
+
+| Item | Prepared by #5497 | Finalize / verify for release |
+| --- | --- | --- |
+| README and every bundled example | Intended `orbss/yamllint@2.1.0`, with preparation wording | Full exact-version review; update preparation wording to reflect the actual release stage |
+| CHANGELOG heading and date | Keep changes under `Unreleased`; no invented release date | Move the release entries to `2.1.0` with the actual release date |
+| Comparison links | Keep `Unreleased` at `v2.0.0...HEAD` during development | `2.1.0`: `v2.0.0...v2.1.0`; `Unreleased`: `v2.1.0...HEAD` |
+| Source verification | Historical Phase 5 baseline and scope above | Fix the RC including final documents, then pass all required checks on that revision |
+| Publication and consumer results | No success claim | Record actual tag/commit, CI, publish time, packed equality and independent consumer results separately |
+
+The adopted [orb-tools v12.5.0 RC011 implementation](https://github.com/CircleCI-Public/orb-tools-orb/blob/78fe512bb2b1355667ef0f53bb8e7518f519332c/src/scripts/review.bats)
+compares only the major of each bundled example's Orb reference with the
+release tag major. It neither reads README nor proves exact `2.1.0` equality.
+It skips without a production tag; a branch skip is not a release success.
+Perform the full-version review above separately and require non-skipped
+RC011 success in the real release-tag pipeline. Local checks of its logic
+do not establish that tag-time result.
 
 ## v2.0.0 integration test coverage
 
