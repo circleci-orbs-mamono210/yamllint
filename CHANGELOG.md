@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Treat each non-empty line of `targets` as a literal file or directory path,
+  separated from yamllint options by `--`. Values beginning with `-`, including
+  option-like names such as `--version`, are now paths rather than CLI options.
+  Use the dedicated Orb parameters to set options. Empty lines are still
+  ignored, and an empty target list still defaults to `.`.
+- Reject a target line equal to `-` with exit status `2` and an Orb diagnostic
+  on stderr before the lint invocation. This changes the previous behavior
+  that could reach yamllint's stdin mode. Use `./-` to lint a file named `-`;
+  a stdin interface is not provided. The separate version-display step may
+  still run before this validation.
+
 ## [2.0.0] - 2026-10-24
 
 ### Added

@@ -1,3 +1,43 @@
+## Phase 1 target-boundary checks (#5491)
+
+The source change adds `--` between the Orb options and literal target paths.
+The `targets-test` verifier now requires `--` as its first argument, then
+checks the exact target count and values. The `combined-parameters-test`
+verifier requires the boundary after the options and treats every remaining
+argument as a target. Both forward the original arguments to real yamllint.
+The existing invocation-count and completion-marker checks are retained.
+
+Run the supplemental regression suite from the repository root:
+
+```bash
+python3 .circleci/test-target-boundaries.py -v
+```
+
+It requires Python 3.8 or newer, PyYAML, and Bash 4 or newer on `PATH`.
+The existing CI shims use Bash `mapfile`; the macOS system Bash 3.2 is not
+sufficient to replay those shims. The suite does not install dependencies.
+
+The suite runs `src/scripts/execute.sh` in child processes and records exact
+arguments using a controlled yamllint executable. It covers literal paths,
+empty-line handling, the `.` fallback, option-like names, shell metacharacters,
+exit-status propagation, and standalone `-` rejection. Rejection requires all
+three conditions: status `2`, the Orb diagnostic on stderr, and no lint body
+invocation. Fault-injected child scripts demonstrate that a wrong status,
+missing diagnostic, or body invocation fails that assertion.
+
+The suite also extracts and exercises the two verifier scripts and their
+invocation guards directly from `.circleci/test-deploy.yml`. It checks valid
+calls, missing or misplaced boundaries, missing or additional targets, changed
+target values, and calls that never ran. It preserves the separate `--version`
+path. These are local assertions using controlled executables; they do not
+establish that CircleCI or real yamllint passed.
+
+Actual yamllint probes must separately record the version, Python version,
+tested source, inputs, status and output. Phase 5 (#5492) owns adding the new
+rejection checks to the mandatory CI and publication dependencies. Phase 4
+(#5496) owns connecting and testing list-files mode. Neither is implemented
+by this Phase 1 change. The historical v2.0.0 coverage record follows.
+
 ## v2.0.0 integration test coverage
 
 This matrix tracks #5487 against the #5486 baseline commit

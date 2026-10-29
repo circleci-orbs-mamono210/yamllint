@@ -144,6 +144,13 @@ jobs:
                 exec "${REAL_YAMLLINT}" "$@"
             fi
 
+            args=("$@")
+            if [[ "${1:-}" != "--" ]]; then
+                echo "Expected -- before targets" >&2
+                exit 1
+            fi
+            shift
+
             mapfile -t expected < targets-test/expected-targets.txt
             actual=("$@")
 
@@ -159,7 +166,7 @@ jobs:
                 fi
             done
 
-            "${REAL_YAMLLINT}" "${actual[@]}"
+            "${REAL_YAMLLINT}" "${args[@]}"
             printf '%s\n' "${actual[*]}" >> targets-test/verified-calls.txt
             BASH
 
@@ -477,9 +484,16 @@ jobs:
             strict=false
             output_format=""
             targets=()
+            boundary_found=false
 
             while [[ "$#" -gt 0 ]]; do
                 case "$1" in
+                    --)
+                        boundary_found=true
+                        shift
+                        targets=("$@")
+                        break
+                        ;;
                     --config-file)
                         [[ "$#" -ge 2 && -z "${config_file}" ]] || exit 1
                         config_file="$2"
@@ -500,11 +514,16 @@ jobs:
                         exit 1
                         ;;
                     *)
-                        targets+=("$1")
-                        shift
+                        echo "Unexpected target before --: $1" >&2
+                        exit 1
                         ;;
                 esac
             done
+
+            if [[ "${boundary_found}" != true ]]; then
+                echo "Expected -- before targets" >&2
+                exit 1
+            fi
 
             if [[ "${config_file}" != "combined-test/yamllint.yml" \
                 || "${strict}" != true || "${output_format}" != parsable ]]; then

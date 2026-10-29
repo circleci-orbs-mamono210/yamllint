@@ -25,7 +25,14 @@ if [[ -n "${PARAM_FORMAT:-}" ]]; then
     YAMLLINT_ARGS+=("--format" "${PARAM_FORMAT}")
 fi
 
+# Validate every target before invoking yamllint. This is shared input validation,
+# independent of any options selecting how yamllint processes those targets.
 while IFS= read -r target; do
+    if [[ "${target}" == "-" ]]; then
+        printf '%s\n' "yamllint Orb: standalone '-' is not supported in targets; use './-' for a file named '-'." >&2
+        exit 2
+    fi
+
     if [[ -n "${target}" ]]; then
         TARGETS+=("${target}")
     fi
@@ -35,4 +42,4 @@ if [[ "${#TARGETS[@]}" -eq 0 ]]; then
     TARGETS=(".")
 fi
 
-yamllint "${YAMLLINT_ARGS[@]}" "${TARGETS[@]}"
+yamllint "${YAMLLINT_ARGS[@]}" -- "${TARGETS[@]}"
