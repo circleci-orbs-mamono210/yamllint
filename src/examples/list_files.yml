@@ -1,7 +1,7 @@
 description: >
   List upstream-selected YAML paths in the repository without linting.
   Success does not prove existence, readability, valid YAML or lint success.
-  Prepared for v2.1.0; use this registry reference after publication.
+  This example targets v2.1.0.
 
 usage:
   version: 2.1

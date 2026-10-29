@@ -1,7 +1,7 @@
 description: >
   Pass multiline YAML or the upstream name relaxed with config_data.
   Empty config_data means unspecified; leave config_file empty when
-  supplying data. Prepared for v2.1.0; use this reference after publication.
+  supplying data. This example targets v2.1.0.
 
 usage:
   version: 2.1

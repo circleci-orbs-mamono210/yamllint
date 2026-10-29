@@ -1,7 +1,7 @@
 description: >
   Pass hyphen-leading names as literal paths after the CLI boundary.
   Use ./- for a file named -; a standalone - is refused in both modes.
-  Prepared for v2.1.0; use this registry reference after publication.
+  This example targets v2.1.0.
 
 usage:
   version: 2.1

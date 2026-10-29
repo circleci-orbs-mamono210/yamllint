@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Prepared for v2.1.0. The entries below describe source changes, not a
-publication or published-consumer verification result. #5493 finalizes the
-release version/date and comparison links as part of release candidate preparation.
+## [2.1.0] - 2026-10-29
+
+Release notes for v2.1.0. Publication and independent consumer verification
+are recorded separately in #5493; these notes alone are not release evidence.
 
 ### Added
 
@@ -266,7 +267,8 @@ File-pattern differences between upstream 1.37.1 and 1.38.0 are preserved.
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
 
-[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...v2.0.0
 [1.1.5]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.3...v1.1.4

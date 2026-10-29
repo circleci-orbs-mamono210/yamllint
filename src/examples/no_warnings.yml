@@ -1,7 +1,7 @@
 description: >
   Hide warnings while keeping upstream exit behavior. This warning-only
   fixture succeeds with strict false; changing strict to true returns 2
-  even with no warning output. Prepared for v2.1.0, after publication.
+  even with no warning output. This example targets v2.1.0.
 
 usage:
   version: 2.1

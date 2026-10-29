@@ -1,7 +1,5 @@
 description: >
-  Minimal install and execute configuration prepared for v2.1.0.
-  Use the registry reference after publication; development checks use
-  the source Orb injected inline, not a published v2.1.0 claim.
+  Install and execute yamllint with v2.1.0 using the minimal workflow.
 
 usage:
   version: 2.1

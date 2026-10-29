@@ -4,16 +4,15 @@
 
 CircleCI Orb for running yamllint.
 
-This branch prepares the **v2.1.0** documentation and examples. References to
-`orbss/yamllint@2.1.0` below are the intended release configuration, not a claim
-that this version has been published or tested as a registry Orb. Development
-verification uses the packed source Orb injected inline. Publication and
-independent consumer verification are tracked separately in #5493.
+This documentation targets **orbss/yamllint@2.1.0**. Development verification
+uses the packed source Orb injected inline. Registry availability and
+independent consumer verification are tracked separately in #5493; a source
+test result alone does not establish either outcome.
 
 ## Usage
 
-The following minimal configuration is prepared for `orbss/yamllint@2.1.0`.
-Use the registry reference after that release is available.
+The following minimal configuration uses `orbss/yamllint@2.1.0`.
+The referenced release must be available in the Orb Registry.
 
 ```yaml
 version: 2.1
@@ -71,7 +70,7 @@ workflows:
       - lint
 ```
 
-### After: v2.1.0 (release preparation)
+### After: v2.1.0
 
 ```yaml
 version: 2.1
@@ -518,11 +517,12 @@ post-publication acceptance.
 
 ## Release documentation
 
-Changes remain under [Unreleased](CHANGELOG.md) during preparation. #5493
-must finalize the README/example references, CHANGELOG version, actual date
-and comparison links in the release candidate, then verify that revision.
-The intended comparisons are `v2.0.0...v2.1.0` for `2.1.0` and
-`v2.1.0...HEAD` for `Unreleased`; they are not finalized here.
+The [CHANGELOG](CHANGELOG.md) separates `2.1.0` from subsequent Unreleased
+changes. Its comparisons are `v2.0.0...v2.1.0` for `2.1.0` and
+`v2.1.0...HEAD` for `Unreleased`. The release candidate must include the
+final date and documentation before validation. Publication, artifact
+equality and independent consumer results remain separate release evidence
+in #5493; a version heading is not proof of publication.
 
 orb-tools v12.5.0 **RC011 checks only the bundled examples' Orb major against
 the release tag major**. It does not check this README or full `2.1.0`
