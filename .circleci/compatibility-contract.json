@@ -1,0 +1,36 @@
+{
+  "baseline_commit": "1765660ba56a1a0b9ac7fcf669cc03d2280a834f",
+  "feature_commits": {
+    "5491": "dfbe13b72d4d695d46f522d6de69fee43eba1288",
+    "5494": "25d142cbee32695a1fb03b11b1e02682d7cc6c81",
+    "5495": "1da872fc2de5cbb9df3d1228c1b5b0923d205496",
+    "5496": "1765660ba56a1a0b9ac7fcf669cc03d2280a834f"
+  },
+  "legacy_job_sha256": {
+    "command-tests": "794da9fdc3b354268d4ec0514d2ea71cb66a73ca553e6c5824df23f299b636b5",
+    "resource-class-test": "dc8d82ffd356087933e0b0e6aa112ed47a33bc391267ad264fac24a6fba427a6",
+    "custom-image-test": "4668d88ea171a9c2570a43a44fec5c1f8150d2e0e391027f72db852a22214750",
+    "install-command-test": "d182cebf4518d0a0299550c3b55eae1e8bd15ea07ee1e4da27ccb6e365a47b36",
+    "install-version-test": "a9cec25efd50235313c7a812129711fcef225c6818da7bd31f08f35be1fb0bfc",
+    "negative-test": "80a9e13a0b29a51bdb7f26fdbd2b3f580fb9a2964159c4848a534c88846dbe0c",
+    "targets-test": "10fa8adb2d9782adb676cb6175ebaf28544345828d7c16c948ee717dbe9137ca",
+    "config-file-test": "ac7a6f640d4cd37edc6d5b10c53f119ec1001a49532516d1173e6e540ad8858f",
+    "strict-test": "74ccb4cbc44845e42675526935be0b88dca0dd5c3d1d9c8f02e83dfa605b802e",
+    "format-test": "24ae19158db0f8b08efb4e5ef00b81869c02f0505d0d8a0eade9e8338b3e63e6",
+    "combined-parameters-test": "509c94048a605a45a01b3dbe99a4b846ca49898b17f1f9ef97961cc94fdef2ed"
+  },
+  "feature_suite_sha256": {
+    "test-target-boundaries.py": "ca52df1dbb4cb40bd4203eec8d92710c06b9cbfb505d667ba4ea3adb8b0aedc1",
+    "test-config-data.py": "44eb2797f274d779296a8c05cf0c7017f05c66099f6b7b40e5319f5b806ec894",
+    "test-no-warnings.py": "88767dcb38237e1fc6ccaf1b1cacafaa8384f7e7d06158088492b6d23ca41ec1",
+    "test-list-files.py": "e161d32946dc14679b1ff06a1bf9c952e14203739251d8aa6d98f8e1edfbaee2"
+  },
+  "versions": [
+    "1.37.1",
+    "1.38.0"
+  ],
+  "python_versions": [
+    "3.13",
+    "3.14"
+  ]
+}

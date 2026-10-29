@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add a required compatibility matrix for yamllint 1.37.1/1.38.0 on
+  cimg/python:3.13/3.14, including feature regressions, both-mode refusals,
+  warning/listing combinations and default inline command execution.
+- Verify source, packed Orb and officially expanded configuration before
+  continuing with the checked inline config. Require all eleven existing
+  jobs plus the four compatibility jobs before downstream pack and publish.
+- Record resolved runtimes, dependencies, revision, cases and CI references
+  for fixed-version and default-install tests without changing the Orb API.
 - Treat each non-empty line of `targets` as a literal file or directory path,
   separated from yamllint options by `--`. Values beginning with `-`, including
   option-like names such as `--version`, are now paths rather than CLI options.

@@ -6,6 +6,14 @@ orbs:
   shellcheck: circleci/shellcheck@3.4.0
 
 executors:
+  config-verifier:
+    docker:
+      - image: cimg/python:3.14
+    resource_class: small
+    environment:
+      CIRCLE_TOKEN: dummy
+      CIRCLE_NO_TELEMETRY: "1"
+      CIRCLE_NO_UPDATE_CHECK: "1"
   orb-pack:
     docker:
       - image: circleci/circleci-cli:1.11.0
@@ -32,12 +40,29 @@ workflows:
           filters: *filters
       - shellcheck/check:
           filters: *filters
-      # Inject the packed orb into the downstream test configuration.
+      # Verify and expand the inline config before continuing with that exact file.
       - orb-tools/continue:
           pipeline_number: << pipeline.number >>
           vcs_type: << pipeline.project.type >>
           orb_name: yamllint
-          inject_orb: true
+          executor: config-verifier
+          checkout: false
+          attach_workspace: false
+          inject_orb: false
+          config_path: /tmp/yamllint-phase5/injected.yml
+          pre-steps:
+            - checkout
+            - attach_workspace:
+                at: /tmp/yamllint-phase5-packed
+            - run:
+                name: Install configuration verifier dependency
+                command: python -m pip install 'PyYAML==6.0.3'
+            - run:
+                name: Verify source, packed Orb, expanded config and release boundary
+                command: bash .circleci/prepare-ci-contract.sh /tmp/yamllint-phase5-packed/orb_source.tar.gz
+            - store_artifacts:
+                path: /tmp/yamllint-phase5
+                destination: phase5-config
           requires:
             - orb-tools/lint
             - orb-tools/pack

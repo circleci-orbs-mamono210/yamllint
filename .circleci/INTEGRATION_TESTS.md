@@ -1,3 +1,137 @@
+## Phase 5 integration and release gates (#5492)
+
+The configuration adds four mandatory `compatibility-tests` instances while
+keeping all eleven existing job bodies unchanged. The table describes the
+configured coverage; only results from the applied revision's CircleCI run
+establish CI success. Local runs and configuration expansion are supplementary.
+
+| Job | Explicit install.version | Executor image | Role |
+| --- | --- | --- | --- |
+| `compatibility-1.37.1-py3.13` | 1.37.1 | cimg/python:3.13 | Older upstream: existing and added behavior |
+| `compatibility-1.37.1-py3.14` | 1.37.1 | cimg/python:3.14 | Existing README fixed-version example on the default executor |
+| `compatibility-1.38.0-py3.13` | 1.38.0 | cimg/python:3.13 | Compare upstream versions with Python held constant |
+| `compatibility-1.38.0-py3.14` | 1.38.0 | cimg/python:3.14 | New upstream on the default executor |
+
+Each job runs the real-upstream Phase 2/3/4 suites and the Phase 5 combinations,
+then runs the actual inline `yamllint/execute` command with all parameters
+omitted. `run-compatibility.py` checks the installed yamllint version, Python
+minor version and checkout commit. Missing dependencies, failed suites or
+incomplete/skipped test summaries fail the job.
+
+### Assignment of all eleven verification scopes
+
+`V+P` means both upstream and Python may affect behavior: all four pairs run
+the case. `Neither` means source/argument structure independent of those
+versions: one check on the exact revision is sufficient. Successful install
+alone never substitutes for behavior verification.
+
+| Scope | Dependency / allocation | Evidence and rationale |
+| --- | --- | --- |
+| Existing parameters and minimum configuration | V+P / four pairs; resource configuration once | Actual inline default execute; config/strict/format tests; existing eleven jobs below |
+| Target/option boundary | V+P / four pairs; pure argv checks once | Real literal and multiple-target cases in list-files/combinations; Phase 1 recorder suite once |
+| Standalone `-` refusal | Neither / once normal; four listing runs retained with Phase 4 | Phase 1 child-process refusal; Phase 4 listing refusal; exact code, Orb stderr and no body call |
+| config_data effect and conflict | V+P / four pairs | Phase 2 real configuration controls and normal refusal; Phase 4 listing refusal and settings selection |
+| no_warnings with strict/format | V+P / four pairs | Phase 3 statuses plus Phase 5 standard/parsable, strict on/off, hidden/visible warnings |
+| list_files and configured selection | V+P / four pairs | Phase 4 discovery/file/data and simple exclusions |
+| list_files with no_warnings | V+P / four pairs | Phase 5 both booleans, both strict values, standard/parsable, config file/data |
+| New parameters omitted | V+P / four pairs | Actual default inline command and Phase 5 existing config_file/strict/format cases with all new variables absent |
+| New and existing parameter combinations | V+P / four pairs | Phase 5 two literal targets, file/data, strict, format and warning display; Phase 4 list options |
+| Version-specific file selection | V+P / four pairs | Phase 4 fixed expectations for each upstream version, separated from common patterns |
+| Script embedding and parameter delivery | Neither / once before continue | Source/packed/official compiler output and compile-only parameter probes, including true/false and multiline data |
+
+### Existing eleven purposes and fixed-version counterparts
+
+| Existing job (unchanged body) | Fixed-version counterpart or independent configuration check |
+| --- | --- |
+| command-tests | Install followed by actual inline execute with all defaults, in every pair |
+| resource-class-test | Existing medium allocation job retained once; expanded medium and default small declarations checked |
+| custom-image-test | Both upstream versions on Python 3.13, with full behavior suites |
+| install-command-test | Actual install command and resolved package version checked in every pair |
+| install-version-test | Existing 1.37.1 install check retained; both fixed versions also have full behavior suites |
+| negative-test | Phase 4 normal-lint invalid YAML control, separate from listing, in every pair |
+| targets-test | Phase 4 literal/directory targets and Phase 5 multiple targets; Phase 1 shim unchanged |
+| config-file-test | Phase 2 real default/config-file controls and Phase 5 file configuration |
+| strict-test | Phase 3 strict warning status and Phase 5 visible/hidden warning combinations |
+| format-test | Phase 3 parsable results and Phase 5 standard/parsable combinations |
+| combined-parameters-test | Phase 5 two warning files with file/data, strict and parsable output; original selection controls and shim retained |
+
+The pure Phase 1 suite runs in `compatibility-1.38.0-py3.14` only. The canonical
+JSON hashes in `compatibility-contract.json` bind all eleven job bodies and
+four inherited suites to the feature-owned revisions. Both #5491 CI shims and
+their fault controls are unchanged. Their rerun is integrated regression,
+not a new independent acceptance decision for the same negative cases.
+`test-combinations.py` reuses the unchanged Phase 4 real-upstream recorder;
+no new yamllint success-conversion shim is introduced.
+
+### Checked continuation and publication boundary
+
+After lint, setup pack, review and ShellCheck succeed, the continue job uses
+`cimg/python:3.14`, checks its curl/jq/yq prerequisites, and installs the
+checksum-pinned CircleCI CLI 1.11.0 for configuration processing.
+`prepare-ci-contract.sh` extracts the setup pack's `orb.yml`, injects it into
+the checked-out downstream source, and compiles the setup, downstream and
+parameter-probe configurations with the official CLI.
+
+`check-ci-contract.py` compares the actual source environment definitions,
+packed scripts/API, expanded executable scripts, parameter values, fixed
+versions/images, inherited jobs and success-only release dependencies.
+`test-ci-contract.py` deliberately corrupts these observations to verify the
+checker detects missing matrix jobs/dependencies, changed scripts/mappings,
+failed-status acceptance, widened publish filters, misplaced Context and an
+unverified continuation path. These controls do not simulate CI failure pipelines.
+
+The verified `/tmp/yamllint-phase5/injected.yml` is passed directly to
+orb-tools/continue. Its checkout, workspace attach and reinjection options
+are disabled because the pre-steps already supplied the checked input.
+The Orb remains inline source from the same revision, with no development
+publish or registry fallback. Parameter probes are compiled only and never
+continued; invalid probe inputs do not create intentionally failing CI jobs.
+
+Downstream pack requires all eleven original jobs and the complete four-job
+`compatibility-matrix` alias. Expanded config must name all fifteen success
+dependencies. Production publish requires that pack, keeps the existing
+release-tag/branch filters, and alone receives `CIRCLECI_ORBS`.
+No release tag or publication is performed by these checks.
+
+### Evidence and completion procedure
+
+| Location in CircleCI artifacts | Contents / interpretation |
+| --- | --- |
+| Continue job: `phase5-config/` | Exact packed/injected/expanded/setup/probe YAML, CLI version, dependency tools, identity, comparison report and fault-control log |
+| Each compatibility job: `compatibility/` | Actual yamllint/Python/packages, configured image, checkout SHA, source hashes, CI job/workflow references and full suite logs |
+| Each original job: `runtime/runtime.json` | Resolved versions/packages, image, case and CI references; default installs are distinct from install-version-test |
+
+Image tags are the required `cimg/python:3.13` and `3.14`; record their actual
+Python patch and dependencies at runtime, not an assumed patch version.
+The configured image is not represented as an observed immutable digest.
+Runtime metadata alone is not a test-success claim: inspect the matching
+job's final status, including the inline execute step after the suites.
+Only an allowlist of CI identifiers is recorded; credentials and complete
+process environments are never exported. Workspaces are workflow-scoped:
+the setup artifact and downstream artifacts are correlated by the checkout
+SHA and pipeline/job links, not by assuming a shared workspace across continue.
+
+For #5492 AC1/2/4/7/9, retain a successful CircleCI run of the applied revision
+covering every listed case and artifact. For AC3/5/6, retain the matching
+comparison and failure-control artifacts as well. Pass that same revision,
+scope table and CI evidence to #5497 and #5493. A later source/config change
+requires the affected checks to run again. This does not establish publication
+or published-Orb acceptance.
+
+The #5492 child-ticket table is still a placeholder in the retrieved ticket
+and no children were returned. This implementation does not settle that
+administrative scope or mark AC8 complete; confirm the child list separately
+before deciding to close #5492.
+
+For supplemental local runs, install each required yamllint version and run:
+
+```bash
+python .circleci/run-compatibility.py --version 1.37.1 --python-version 3.13 --local --evidence-dir /tmp/yamllint-local
+```
+
+`--local` explicitly records that the configured cimg image was not executed.
+It does not satisfy CircleCI acceptance, even when the host Python matches.
+
 ## Phase 4 file-listing checks (#5496)
 
 `execute.list_files` is a boolean with a `false` default. Only `true` adds
@@ -273,11 +407,11 @@ the eleven job results when this revision is run on CircleCI. Local replay of
 shell steps is supplemental evidence, not proof of the Docker executors or a
 successful CircleCI pipeline.
 
-The #5486 inline-injection configuration, pack executors, publishing Context,
-and release filters are preserved. #5488 adds success-only dependencies from
-all eleven integration tests to the downstream `orb-tools/pack`, and from
-that pack to `orb-tools/publish`. The setup pack remains a prerequisite for
-inline injection; it does not wait for downstream tests.
+The #5486 inline source-testing model, pack executors, publishing Context,
+and release filters are preserved. #5488 established the eleven-job gate;
+Phase 5 above adds the four compatibility jobs and verifies the exact inline
+continuation input. Downstream pack still gates production publish. Setup
+pack remains a prerequisite for injection and does not wait for downstream tests.
 
 ### Release dependency checks (#5488)
 
@@ -301,16 +435,16 @@ These are static configuration expectations, not evidence that failure or
 release pipelines were executed. Actual publication also depends on the
 existing Context permissions and CircleCI execution environment.
 
-To finish #5488 verification, record the applied commit and the exact
+For release dependency verification, record the applied commit and the exact
 configuration-expansion tool/version/command, retain source and fully
 processed setup/downstream configurations, and compare their dependencies
 and filters. Packing the Orb, injecting it, or resolving YAML anchors alone
 is not a full CircleCI configuration expansion. If the processed view is
 event-filtered, also retain a processed view that includes the release path;
 a branch-only result without publish cannot verify that path.
-Until this comparison is recorded, #5488 AC4 remains incomplete.
 Do not create a release tag just to test these dependencies.
-The v2.0.0 release remains a later task (#5490).
+For v2.1.0, the Phase 5 artifacts above provide this comparison; actual CI
+completion and release outcomes remain separate records in #5492 and #5493.
 
 Reference for exit codes:
 [yamllint configuration: errors and warnings](https://yamllint.readthedocs.io/en/stable/configuration.html#errors-and-warnings).

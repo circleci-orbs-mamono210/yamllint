@@ -19,6 +19,48 @@ filters: &filters
   tags:
     only: /.*/
 
+commands:
+  record-runtime:
+    parameters:
+      image:
+        type: string
+      requested-version:
+        type: string
+        default: ""
+      cases:
+        type: string
+    steps:
+      - run:
+          name: Record resolved runtime for this integration job
+          when: always
+          environment:
+            EVIDENCE_IMAGE: << parameters.image >>
+            EVIDENCE_REQUESTED_VERSION: << parameters.requested-version >>
+            EVIDENCE_CASES: << parameters.cases >>
+          command: |
+            mkdir -p /tmp/yamllint-runtime
+            python - \<<'PYTHON'
+            import importlib.metadata as metadata
+            import json, os, platform
+            from pathlib import Path
+            selected = ("CIRCLE_SHA1", "CIRCLE_JOB", "CIRCLE_BUILD_NUM", "CIRCLE_BUILD_URL",
+                        "CIRCLE_WORKFLOW_ID", "CIRCLE_PIPELINE_ID", "CIRCLE_BRANCH", "CIRCLE_TAG")
+            packages = {d.metadata["Name"]: d.version for d in metadata.distributions()}
+            record = dict(
+                evidence_kind="runtime-metadata; job status determines success",
+                requested_version=os.environ["EVIDENCE_REQUESTED_VERSION"],
+                install_mode="fixed" if os.environ["EVIDENCE_REQUESTED_VERSION"] else "default",
+                yamllint=metadata.version("yamllint"), python=platform.python_version(),
+                configured_image=os.environ["EVIDENCE_IMAGE"], architecture=platform.machine(),
+                cases=os.environ["EVIDENCE_CASES"], packages=packages,
+                ci={key: os.environ.get(key, "") for key in selected})
+            Path("/tmp/yamllint-runtime/runtime.json").write_text(json.dumps(record, indent=2) + "\n")
+            print(json.dumps(record, indent=2))
+            PYTHON
+      - store_artifacts:
+          path: /tmp/yamllint-runtime
+          destination: runtime
+
 jobs:
   command-tests:
     executor: yamllint/default
@@ -584,30 +626,111 @@ jobs:
           name: Verify combined command actually ran
           command: test -f combined-test/verified
 
+  compatibility-tests:
+    parameters:
+      yamllint-version:
+        type: enum
+        enum: ["1.37.1", "1.38.0"]
+      python-version:
+        type: enum
+        enum: ["3.13", "3.14"]
+    executor:
+      name: yamllint/default
+      image: cimg/python:<< parameters.python-version >>
+    steps:
+      - checkout
+      - yamllint/install:
+          version: << parameters.yamllint-version >>
+      - run:
+          name: Run fixed-version feature, refusal and combination checks
+          command: >
+            python .circleci/run-compatibility.py
+            --version << parameters.yamllint-version >>
+            --python-version << parameters.python-version >>
+            --evidence-dir /tmp/yamllint-compatibility
+      # The actual inline command also runs with every new parameter omitted.
+      - yamllint/execute
+      - store_artifacts:
+          path: /tmp/yamllint-compatibility
+          destination: compatibility
+
 workflows:
   test-deploy:
     jobs:
       - command-tests:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: command-tests
       - resource-class-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: resource-class-test
       - custom-image-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.13
+                cases: custom-image-test
       - install-command-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: install-command-test
       - install-version-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: install-version-test
+                requested-version: "1.37.1"
       - negative-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: negative-test
       - targets-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: targets-test
       - config-file-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: config-file-test
       - strict-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: strict-test
       - format-test:
           filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: format-test
       - combined-parameters-test:
+          filters: *filters
+          post-steps:
+            - record-runtime:
+                image: cimg/python:3.14
+                cases: combined-parameters-test
+      - compatibility-tests:
+          name: compatibility-<< matrix.yamllint-version >>-py<< matrix.python-version >>
+          matrix:
+            alias: compatibility-matrix
+            parameters:
+              yamllint-version: ["1.37.1", "1.38.0"]
+              python-version: ["3.13", "3.14"]
           filters: *filters
       - orb-tools/pack:
           executor: orb-pack
@@ -625,6 +748,7 @@ workflows:
             - strict-test
             - format-test
             - combined-parameters-test
+            - compatibility-matrix
       - orb-tools/publish:
           orb_name: orbss/yamllint
           vcs_type: << pipeline.project.type >>
