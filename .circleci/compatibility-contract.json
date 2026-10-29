@@ -22,8 +22,10 @@
   "feature_suite_sha256": {
     "test-target-boundaries.py": "ca52df1dbb4cb40bd4203eec8d92710c06b9cbfb505d667ba4ea3adb8b0aedc1",
     "test-config-data.py": "44eb2797f274d779296a8c05cf0c7017f05c66099f6b7b40e5319f5b806ec894",
-    "test-no-warnings.py": "88767dcb38237e1fc6ccaf1b1cacafaa8384f7e7d06158088492b6d23ca41ec1",
-    "test-list-files.py": "e161d32946dc14679b1ff06a1bf9c952e14203739251d8aa6d98f8e1edfbaee2"
+    "test-no-warnings.py": "a09f6013035583e63d7f20f178b965487d80637feda1fb26b2a8f8fbef50e1fd",
+    "test-list-files.py": "9618e6bfbad4d4a7d6969d770dd6db3dc5c212108c49a88f521c744799c6ff15",
+    "test-boolean-runtime.py": "3063f9e8873d66099d9c01597ca1fa5e915f3b31ce9062fdbe99d1f0b928f853",
+    "verify-boolean-parameters.py": "cecf5265faee49b339fc16cbd69de7241c1363ba1b750c1d2030454651107a59"
   },
   "versions": [
     "1.37.1",
@@ -32,5 +34,8 @@
   "python_versions": [
     "3.13",
     "3.14"
-  ]
+  ],
+  "boolean_runtime_job_sha256": "ed8705a44e217bb4b7e4c83e1bc778b4537b8908d1c4c4461c6b419ac253aded",
+  "boolean_fix_base_commit": "b8b87391ceb1ce8fc746ea3f690e22c67011bfdd",
+  "boolean_fix_ticket": 5504
 }

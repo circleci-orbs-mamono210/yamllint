@@ -30,7 +30,7 @@ case "${PARAM_STRICT:-false}" in
         ;;
 esac
 
-if [[ "${PARAM_NO_WARNINGS:-false}" == "true" ]]; then
+if [[ "${PARAM_NO_WARNINGS:-false}" == "true" || "${PARAM_NO_WARNINGS:-false}" == "1" ]]; then
     YAMLLINT_ARGS+=("--no-warnings")
 fi
 
@@ -38,7 +38,7 @@ if [[ -n "${PARAM_FORMAT:-}" ]]; then
     YAMLLINT_ARGS+=("--format" "${PARAM_FORMAT}")
 fi
 
-if [[ "${PARAM_LIST_FILES:-false}" == "true" ]]; then
+if [[ "${PARAM_LIST_FILES:-false}" == "true" || "${PARAM_LIST_FILES:-false}" == "1" ]]; then
     YAMLLINT_ARGS+=("--list-files")
 fi
 

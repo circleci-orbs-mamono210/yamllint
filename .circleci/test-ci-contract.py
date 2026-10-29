@@ -92,6 +92,59 @@ class ConfigContract(unittest.TestCase):
         job["steps"].remove({"run": contract.runs(job, "Record resolved runtime for this integration job")[0]})
         self.rejected()
 
+    def runtime_job(self):
+        return self.c["expanded"]["jobs"]["compatibility-1.37.1-py3.14"]
+
+    def test_runtime_observer_missing(self):
+        job = self.runtime_job()
+        job["steps"].remove({"run": contract.runs(job, "Verify all body calls and results")[0]})
+        self.rejected()
+
+    def test_runtime_observer_duplicated(self):
+        job = self.runtime_job()
+        job["steps"].append({"run": contract.runs(job, "Verify all body calls and results")[0]})
+        self.rejected()
+
+    def test_runtime_step_can_be_skipped(self):
+        contract.runs(self.runtime_job(), "Verify all body calls and results")[0]["when"] = "on_fail"
+        self.rejected()
+
+    def test_runtime_step_backgrounded(self):
+        contract.runs(self.runtime_job(), "Verify all body calls and results")[0]["background"] = True
+        self.rejected()
+
+    def test_runtime_parameter_rewritten(self):
+        contract.runs(self.runtime_job(), "Execute yamllint")[4]["environment"]["PARAM_NO_WARNINGS"] = "true"
+        self.rejected()
+
+    def test_observer_environment_normalization(self):
+        contract.runs(self.runtime_job(), "Expect hidden-warning")[0]["environment"] = {"PARAM_NO_WARNINGS": "true"}
+        self.rejected()
+
+    def test_runtime_identity_scope_changed(self):
+        environment = self.runtime_job()["environment"]
+        if isinstance(environment, list):
+            environment = next(item for item in environment if "VERIFICATION_SCOPE" in item)
+        environment["VERIFICATION_SCOPE"] = "consumer"
+        self.rejected()
+
+    def test_runtime_identity_duplicate(self):
+        self.runtime_job()["environment"] = [
+            {"VERIFICATION_SCOPE": "source"}, {"VERIFICATION_SCOPE": "consumer"}]
+        self.rejected()
+
+    def test_source_runtime_case_removed(self):
+        job = self.c["source"]["jobs"]["compatibility-tests"]
+        job["steps"].remove({"run": contract.runs(job, "Expect hidden-warning")[0]})
+        self.rejected()
+
+    def test_runtime_order_changed(self):
+        job = self.runtime_job()
+        step = {"run": contract.runs(job, "Verify all body calls and results")[0]}
+        job["steps"].remove(step)
+        job["steps"].insert(1, step)
+        self.rejected()
+
 
 if __name__ == "__main__":
     unittest.main()

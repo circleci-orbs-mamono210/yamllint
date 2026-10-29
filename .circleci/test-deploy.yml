@@ -627,6 +627,10 @@ jobs:
           command: test -f combined-test/verified
 
   compatibility-tests:
+    environment:
+      VERIFICATION_SCOPE: source
+      VERIFICATION_IMAGE: cimg/python:<< parameters.python-version >>
+      EXPECTED_YAMLLINT: << parameters.yamllint-version >>
     parameters:
       yamllint-version:
         type: enum
@@ -650,6 +654,101 @@ jobs:
             --evidence-dir /tmp/yamllint-compatibility
       # The actual inline command also runs with every new parameter omitted.
       - yamllint/execute
+      - run:
+          name: Prepare fixtures and real-upstream observer
+          command: python .circleci/verify-boolean-parameters.py prepare
+      - run:
+          name: Expect config-file
+          command: python .circleci/verify-boolean-parameters.py expect config-file
+      - yamllint/execute:
+          targets: consumer-fixtures/long.yml
+          config_file: consumer-fixtures/config.yml
+      - run:
+          name: Expect config-data
+          command: python .circleci/verify-boolean-parameters.py expect config-data
+      - yamllint/execute:
+          targets: consumer-fixtures/long.yml
+          config_data: "extends: default\nrules:\n  line-length: disable\n"
+      - run:
+          name: Expect visible-strict-warning
+          command: python .circleci/verify-boolean-parameters.py expect visible-strict-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          format: parsable
+      - run:
+          name: Expect hidden-warning
+          command: python .circleci/verify-boolean-parameters.py expect hidden-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: false
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect hidden-strict-warning
+          command: python .circleci/verify-boolean-parameters.py expect hidden-strict-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect visible-error
+          command: python .circleci/verify-boolean-parameters.py expect visible-error
+      - yamllint/execute:
+          targets: consumer-fixtures/error.yml
+          config_data: 'extends: default'
+          strict: true
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect list-files
+          command: python .circleci/verify-boolean-parameters.py expect list-files
+      - yamllint/execute:
+          targets: consumer-fixtures/listing
+          config_data: 'extends: relaxed
+
+            yaml-files: ["*.yml"]
+
+            ignore: ["consumer-fixtures/listing/skip.yml"]
+
+            '
+          list_files: true
+      - run:
+          name: Expect default-booleans
+          command: python .circleci/verify-boolean-parameters.py expect default-booleans
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+      - run:
+          name: Expect false-booleans
+          command: python .circleci/verify-boolean-parameters.py expect false-booleans
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          strict: false
+          no_warnings: false
+          list_files: false
+      - run:
+          name: Expect literal-targets
+          command: python .circleci/verify-boolean-parameters.py expect literal-targets
+      - yamllint/execute:
+          targets: '-consumer.yml
+
+            ./-
+
+            consumer-fixtures/valid.yml'
+      - run:
+          name: Verify all body calls and results
+          command: python .circleci/verify-boolean-parameters.py finish
+      - store_artifacts:
+          path: .boolean-evidence
+          destination: boolean-runtime
       - store_artifacts:
           path: /tmp/yamllint-compatibility
           destination: compatibility

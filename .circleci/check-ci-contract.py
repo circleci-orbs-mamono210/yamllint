@@ -172,6 +172,44 @@ def verify_setup(source, expanded):
             "Expanded continuation input mismatch")
 
 
+def verify_runtime_steps(context, job, version, python):
+    """Every matrix pair must execute the complete ordered boolean observation."""
+    source = context["source"]["jobs"]["compatibility-tests"]
+    require(digest(source) == context["manifest"]["boolean_runtime_job_sha256"],
+            "Required runtime cases, typed parameters or observer steps changed")
+    parameters = {"yamllint-version": version, "python-version": python}
+    # Official expansion represents job environment as a list of singleton maps.
+    environment = job.get("environment")
+    if isinstance(environment, list):
+        require(all(isinstance(item, dict) and len(item) == 1 for item in environment),
+                "Invalid expanded environment")
+        entries = [next(iter(item.items())) for item in environment]
+        require(len(dict(entries)) == len(entries), "Duplicate runtime environment variable")
+        environment = dict(entries)
+    require(environment == {
+        "VERIFICATION_SCOPE": "source", "VERIFICATION_IMAGE": f"cimg/python:{python}",
+        "EXPECTED_YAMLLINT": version}, "Runtime identity environment changed")
+    expected = []
+    for step in source["steps"]:
+        if isinstance(step, dict) and "run" in step:
+            expected.append((step["run"]["name"], resolve(step["run"]["command"], parameters), False))
+        else:
+            name = step if isinstance(step, str) else next(iter(step))
+            if name in ("yamllint/install", "yamllint/execute"):
+                for command_step in context["packed"]["commands"][name.split("/")[1]]["steps"]:
+                    run = command_step["run"]
+                    expected.append((run["name"], run["command"].replace("\\<<", "<<"), True))
+    actual = [step["run"] for step in job["steps"] if isinstance(step, dict) and "run" in step]
+    require(len(actual) == len(expected), "Runtime observation step missing or duplicated")
+    for run, (name, command, orb_step) in zip(actual, expected):
+        require(isinstance(run, dict) and run.get("name") == name, "Runtime observation reordered")
+        require(run.get("command", "").strip() == command.strip(), "Runtime observer/script bypassed")
+        require(run.get("when", "on_success") == "on_success" and not run.get("background", False),
+                "Runtime checks must complete successfully before packing")
+        if not orb_step:
+            require(not run.get("environment"), "Observer must not normalize parameter values")
+
+
 def read_context(directory):
     directory = Path(directory)
     return dict(
@@ -240,6 +278,7 @@ def verify(context):
             verify_expanded_job(source["jobs"]["compatibility-tests"], job, command,
                                 c["execute_script"], c["install_script"],
                                 {"yamllint-version": version, "python-version": python})
+            verify_runtime_steps(c, job, version, python)
             checks = runs(job, "Run fixed-version feature, refusal and combination checks")
             expected = (f"python .circleci/run-compatibility.py --version {version} "
                         f"--python-version {python} --evidence-dir /tmp/yamllint-compatibility")

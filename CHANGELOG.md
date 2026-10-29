@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-29
+
+Preparation for #5504. Publication and independent consumer verification
+must be recorded separately; this heading is not release evidence.
+
+### Fixed
+
+- Recognize both `true` and `1` as enabled internal values for `no_warnings`
+  and `list_files`. Public parameters remain boolean with default `false`;
+  `false`, `0` and omitted values retain normal lint behavior.
+- Cover actual typed Orb commands in all four required compatibility jobs.
+  Observe raw allowlisted parameters and exact upstream arguments, status
+  and output without rewriting boolean values. Add textual/numeric local
+  regressions, old-code failure controls and observer/gate fault controls.
+- Prepare current documentation and examples for `orbss/yamllint@2.1.1`.
+  Published v2.1.0 failed independent consumer verification in pipeline 135;
+  preserve that outcome separately from v2.1.1 verification.
+
 ## [2.1.0] - 2026-10-29
 
 Release notes for v2.1.0. Publication and independent consumer verification
@@ -267,7 +285,8 @@ File-pattern differences between upstream 1.37.1 and 1.38.0 are preserved.
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
 
-[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...v2.0.0
 [1.1.5]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.4...v1.1.5

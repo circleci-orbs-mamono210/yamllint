@@ -202,9 +202,12 @@ class ListFiles(unittest.TestCase):
                     self.require_listing(result, expected[self.version])
 
     def test_listing_never_calls_linter_and_guard_detects_lint(self):
-        result = self.compare(["--list-files"], ("invalid.yml",), GUARD_LINT="1")
-        self.require_listing(result, ["invalid.yml"])
-        self.assertFalse(self.lint_marker.exists())
+        for value in ("true", "1"):
+            with self.subTest(value=value):
+                result = self.compare(["--list-files"], ("invalid.yml",),
+                                      PARAM_LIST_FILES=value, GUARD_LINT="1")
+                self.require_listing(result, ["invalid.yml"])
+                self.assertFalse(self.lint_marker.exists())
         control = self.execute(PARAM_TARGETS="invalid.yml", PARAM_LIST_FILES="false",
                                GUARD_LINT="1")
         self.assertEqual(control.returncode, 91)
@@ -212,7 +215,7 @@ class ListFiles(unittest.TestCase):
         self.assertEqual(self.calls(), [["--", "invalid.yml"]])
 
     def test_unset_and_false_keep_normal_lint(self):
-        for value in (None, "false"):
+        for value in (None, "false", "0"):
             if value is None:
                 self.env.pop("PARAM_LIST_FILES", None)
             else:
@@ -225,6 +228,24 @@ class ListFiles(unittest.TestCase):
                         self.assertIn("syntax", result.stdout)
                     else:
                         self.assertEqual(result.stdout, "")
+
+    def test_numeric_selection_and_both_mode_refusals(self):
+        result = self.compare(["--config-data", CONFIG, "--list-files"],
+                              PARAM_CONFIG_DATA=CONFIG, PARAM_LIST_FILES="1")
+        self.require_listing(result, ["fixtures/keep.yml", "fixtures/drop.yml",
+                                      "fixtures/sub/keep.yml"])
+        for value in (None, "false", "0", "true", "1"):
+            if value is None:
+                self.env.pop("PARAM_LIST_FILES", None)
+            else:
+                self.env["PARAM_LIST_FILES"] = value
+            for diagnostic, parameters in (
+                    (DASH, dict(PARAM_TARGETS="-")),
+                    (CONFLICT, dict(PARAM_CONFIG_FILE="settings file.yml", PARAM_CONFIG_DATA=CONFIG)),
+                    ("Invalid strict value: invalid", dict(PARAM_STRICT="invalid"))):
+                with self.subTest(value=value, diagnostic=diagnostic):
+                    result = self.execute(**parameters)
+                    require_refusal(result, self.calls(), diagnostic)
 
     def test_literal_targets_are_not_options_or_shell(self):
         targets = ("--version", "space name.yml", '$(touch injected).yml',

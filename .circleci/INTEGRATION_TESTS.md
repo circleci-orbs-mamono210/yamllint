@@ -6,6 +6,42 @@ below describe test ownership and assertions. Running those suites locally
 is supplementary; the following recorded CircleCI run establishes the
 integrated source-Orb result for its exact revision.
 
+## v2.1.1 boolean runtime regression (#5504)
+
+The historical evidence below is retained for its recorded revision. It does
+not prove the v2.1.1 candidate or the published v2.1.0 boolean behavior.
+[Pipeline 135 analysis](BOOLEAN_RUNTIME_FIX.md) explains the missing flag and
+the distinction between observed CI evidence and the inferred encoding cause.
+
+Every one of the four compatibility jobs now runs 49 test methods (63 on
+1.38.0/Python 3.14, including the 14 target-boundary methods), then the original
+omitted-parameter inline command, followed by ten actual inline Orb calls:
+config-file, config-data, visible strict warning, hidden warning, hidden strict
+warning, visible error, file listing, omitted booleans, explicit false booleans,
+and literal targets. The public arguments are real YAML booleans; no step
+converts the runtime `PARAM_*` environment to make the assertions pass.
+
+`verify-boolean-parameters.py` records only the seven public parameter variables,
+real upstream argv/status/stdout/stderr, package versions and allowlisted CI
+identity. It returns success for expected upstream nonzero statuses only after
+all assertions pass. A pending-case state machine rejects missing, duplicate
+or reordered bodies. Version-display calls are separate from body calls.
+`test-boolean-runtime.py` exercises both encodings, proves the old conditions
+fail numeric cases, and rejects bad flags/status/output/body observations.
+
+Artifacts: `compatibility/results.json` and suite logs, plus
+`boolean-runtime/runtime.json`, `state.json`, `last-observation.json`, and
+`results.json`. On failure the last observation is retained but is not PASS.
+The `phase5-config` artifacts bind the source, pack, compiler output, all four
+runtime sequences and success dependencies to downstream pack/publish.
+All eleven legacy job hashes are unchanged. Updated feature hashes explicitly
+bind the #5504 suites and observer; historical feature commit IDs are provenance,
+not a claim that the modified tests are byte-identical to those old commits.
+
+Local checks never establish cimg execution, CircleCI completion, publication
+or registry-consumer acceptance. Use [RELEASE_V2_1_1.md](RELEASE_V2_1_1.md) and
+record new results for the final RC, tag and dedicated consumer branch.
+
 ## Verified Phase 5 source baseline
 
 Reviewed on 2026-10-29 for #5492 and the #5497 documentation handoff:
@@ -101,11 +137,11 @@ alone never substitutes for behavior verification.
 
 The pure Phase 1 suite runs in `compatibility-1.38.0-py3.14` only. The canonical
 JSON hashes in `compatibility-contract.json` bind all eleven job bodies and
-four inherited suites to the feature-owned revisions. Both #5491 CI shims and
+inherited suites to the reviewed file hashes (updated by #5504 as described above). Both #5491 CI shims and
 their fault controls are unchanged. Their rerun is integrated regression,
 not a new independent acceptance decision for the same negative cases.
-`test-combinations.py` reuses the unchanged Phase 4 real-upstream recorder;
-no new yamllint success-conversion shim is introduced.
+`test-combinations.py` reuses the Phase 4 real-upstream recorder. The added
+#5504 actual-command observer and its failure controls are described above.
 
 ### Checked continuation and publication boundary
 
@@ -367,6 +403,10 @@ rejection checks into the mandatory CI and publication dependencies; Phase 4
 results are recorded above. The historical v2.0.0 coverage record follows.
 
 ## Phase 6 documentation and Phase 7 handoff (#5497 / #5493)
+
+Historical v2.1.0 handoff below: retain it as the earlier scope record.
+Current examples target v2.1.1, and #5504 uses RELEASE_V2_1_1.md. The later
+published v2.1.0 consumer failure is documented in BOOLEAN_RUNTIME_FIX.md.
 
 The README describes the adopted #5491 behavior changes; #5497 does not
 redefine that adoption or the Phase 2/3/4 contracts. The examples preserve

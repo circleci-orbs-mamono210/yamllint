@@ -115,7 +115,7 @@ class NoWarnings(unittest.TestCase):
             "--config-file", "settings.yml"]
         if strict:
             options += ["--strict"]
-        if no_warnings == "true":
+        if no_warnings in ("true", "1"):
             options += ["--no-warnings"]
         argv = [*options, "--format", "parsable", "--", *target.split("\n")]
         expected = self.observe(argv)
@@ -161,15 +161,20 @@ class NoWarnings(unittest.TestCase):
                          "<< parameters.no_warnings >>")
 
     def test_warning_hidden_without_strict_exits_zero(self):
-        self.check_case("warning.yml", False, "true", 0, False, False)
+        for value in ("true", "1"):
+            with self.subTest(value=value):
+                self.check_case("warning.yml", False, value, 0, False, False)
 
     def test_warning_hidden_with_strict_still_exits_two(self):
-        self.check_case("warning.yml", True, "true", 2, False, False)
+        for value in ("true", "1"):
+            with self.subTest(value=value):
+                self.check_case("warning.yml", True, value, 2, False, False)
 
     def test_errors_remain_visible_with_both_strict_values(self):
         for strict in (False, True):
-            with self.subTest(strict=strict):
-                self.check_case("error.yml", strict, "true", 1, False, True)
+            for value in ("true", "1"):
+                with self.subTest(strict=strict, value=value):
+                    self.check_case("error.yml", strict, value, 1, False, True)
 
     def test_unset_and_false_preserve_output_and_status(self):
         for target in ("warning.yml", "error.yml"):
@@ -178,9 +183,10 @@ class NoWarnings(unittest.TestCase):
                 with self.subTest(target=target, strict=strict):
                     unspecified = self.check_case(target, strict, None, status,
                                                   True, target == "error.yml")
-                    disabled = self.check_case(target, strict, "false", status,
-                                               True, target == "error.yml")
-                    self.assertEqual(unspecified, disabled)
+                    for value in ("false", "0"):
+                        disabled = self.check_case(target, strict, value, status,
+                                                   True, target == "error.yml")
+                        self.assertEqual(unspecified, disabled)
 
     def test_no_warnings_also_works_with_config_data(self):
         self.check_case("warning.yml", True, "true", 2, False, False, config_data=True)

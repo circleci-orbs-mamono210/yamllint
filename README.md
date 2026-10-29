@@ -4,21 +4,21 @@
 
 CircleCI Orb for running yamllint.
 
-This documentation targets **orbss/yamllint@2.1.0**. Development verification
+This documentation targets **orbss/yamllint@2.1.1**. Development verification
 uses the packed source Orb injected inline. Registry availability and
-independent consumer verification are tracked separately in #5493; a source
+independent consumer verification are tracked separately in #5504; a source
 test result alone does not establish either outcome.
 
 ## Usage
 
-The following minimal configuration uses `orbss/yamllint@2.1.0`.
+The following minimal configuration uses `orbss/yamllint@2.1.1`.
 The referenced release must be available in the Orb Registry.
 
 ```yaml
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@2.1.0
+  yamllint: orbss/yamllint@2.1.1
 
 jobs:
   lint:
@@ -36,7 +36,7 @@ workflows:
 
 ## Migrating from v1 to v2
 
-For v2.1.0, update the Orb reference to `orbss/yamllint@2.1.0`, and rename the
+For v2.1.1, update the Orb reference to `orbss/yamllint@2.1.1`, and rename the
 `yamllint/execute` parameter `config-file` to `config_file` in every
 invocation. There is no compatibility alias for `config-file` in v2;
 a configuration that still passes the old name must be updated before
@@ -70,13 +70,13 @@ workflows:
       - lint
 ```
 
-### After: v2.1.0
+### After: v2.1.1
 
 ```yaml
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@2.1.0
+  yamllint: orbss/yamllint@2.1.1
 
 jobs:
   lint:
@@ -96,11 +96,11 @@ workflows:
       - lint
 ```
 
-The existing parameter names, types and defaults are retained in v2.1.0.
+The existing parameter names, types and defaults are retained in v2.1.1.
 Target interpretation has the specific migration changes described below.
 The complete `execute` API is:
 
-| Parameter | Type | Default | Behavior in v2.1.0 |
+| Parameter | Type | Default | Behavior in v2.1.1 |
 | --- | --- | --- | --- |
 | `targets` | string | `.` | Literal file/directory paths, one per line; applies to lint and listing |
 | `config_file` (v1: `config-file`) | string | `""` | Configuration path; mutually exclusive with non-empty `config_data` |
@@ -248,7 +248,7 @@ python -m pip install "yamllint==1.37.1"
 
 This README's `1.37.1` example on the default `cimg/python:3.14` executor
 is one of the four [verified combinations](#verified-compatibility).
-The Orb version (`2.1.0`) and installed yamllint version (`1.37.1`) are
+The Orb version (`2.1.1`) and installed yamllint version (`1.37.1`) are
 different version choices. A default install may resolve to a newer upstream
 version; it is not a fixed-version compatibility guarantee.
 
@@ -481,9 +481,9 @@ propagates upstream's exit status without an independent remapping.
 
 ## Verified compatibility
 
-The Phase 5 source-Orb CI at
+The historical Phase 5 source-Orb CI at
 [commit 9bdc52b](https://github.com/circleci-orbs-mamono210/yamllint/commit/9bdc52b627986e18a6da4ba02c8a621387f554e1)
-verified these four pairs:
+ran source checks for these four pairs:
 
 | yamllint | Configured image | Coverage role |
 | --- | --- | --- |
@@ -492,8 +492,17 @@ verified these four pairs:
 | 1.38.0 | `cimg/python:3.13` | Version comparison with Python held constant |
 | 1.38.0 | `cimg/python:3.14` | Newer upstream on the default executor |
 
-Each pair uses explicit `install.version`, real feature/combination checks,
-and the inline command with all new parameters omitted. Existing eleven jobs
+The historical run used explicit `install.version`, real feature/combination
+checks, and the inline command with all new parameters omitted. It missed
+boolean runtime encoding: the published v2.1.0 consumer later failed
+`hidden-warning` in pipeline 135. See the
+[failure analysis](.circleci/BOOLEAN_RUNTIME_FIX.md).
+
+For v2.1.1, every pair additionally executes ten observed inline Orb calls
+with typed boolean parameters, retaining raw values and exact upstream
+arguments/status/output. Local tests cover textual and numeric encodings,
+old-code failure controls and observer faults. These are configured checks;
+new CircleCI results for the final RC are still required. Existing eleven jobs
 are retained and mapped to fixed-version coverage; they are not each run four
 times. The [coverage and CI evidence](.circleci/INTEGRATION_TESTS.md) record
 actual Python patch/dependency versions, cases and job links. This scope does
@@ -505,7 +514,7 @@ stderr and no body call must all match. The same revision's packed Orb and
 expanded configuration separately establish script embedding and parameter
 delivery. All required tests gate downstream pack and production publish.
 
-After publication, #5493 must use the registry Orb directly in an independent
+After publication, #5504 must use the registry Orb directly in an independent
 consumer configuration for the minimum workflow, `config_file`, effective
 `config_data`, `no_warnings` with `strict`, listing, and accepted ordinary or
 hyphen-leading paths. Direct execution of the two refusal paths in the
@@ -517,14 +526,16 @@ post-publication acceptance.
 
 ## Release documentation
 
-The [CHANGELOG](CHANGELOG.md) separates `2.1.0` from subsequent Unreleased
-changes. Its comparisons are `v2.0.0...v2.1.0` for `2.1.0` and
-`v2.1.0...HEAD` for `Unreleased`. The release candidate must include the
+The [CHANGELOG](CHANGELOG.md) separates `2.1.1` from subsequent Unreleased
+changes. Its comparisons are `v2.1.0...v2.1.1` for `2.1.1` and
+`v2.1.1...HEAD` for `Unreleased`. The release candidate must include the
 final date and documentation before validation. Publication, artifact
 equality and independent consumer results remain separate release evidence
-in #5493; a version heading is not proof of publication.
+in #5504; a version heading is not proof of publication. Follow the
+[v2.1.1 release procedure](.circleci/RELEASE_V2_1_1.md). The v2.1.0 publication
+and failed consumer result remain recorded separately under #5493.
 
 orb-tools v12.5.0 **RC011 checks only the bundled examples' Orb major against
-the release tag major**. It does not check this README or full `2.1.0`
+the release tag major**. It does not check this README or full `2.1.1`
 equality. README, every example and CHANGELOG need a separate full-version
 review; a branch-time RC011 skip is not a successful release-tag check.
