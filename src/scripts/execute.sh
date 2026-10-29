@@ -6,7 +6,7 @@ YAMLLINT_ARGS=()
 TARGETS=()
 
 # Keep configuration validation before argument construction and any body call.
-# Both normal lint and future file-listing modes share this input contract.
+# Both normal lint and file-listing modes share this input contract.
 if [[ -n "${PARAM_CONFIG_FILE}" && -n "${PARAM_CONFIG_DATA:-}" ]]; then
     printf '%s\n' "yamllint Orb: config_file and config_data cannot both be non-empty." >&2
     exit 2
@@ -36,6 +36,10 @@ fi
 
 if [[ -n "${PARAM_FORMAT:-}" ]]; then
     YAMLLINT_ARGS+=("--format" "${PARAM_FORMAT}")
+fi
+
+if [[ "${PARAM_LIST_FILES:-false}" == "true" ]]; then
+    YAMLLINT_ARGS+=("--list-files")
 fi
 
 # Validate every target before invoking yamllint. This is shared input validation,

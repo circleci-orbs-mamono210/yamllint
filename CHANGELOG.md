@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the `execute.list_files` boolean parameter (default: `false`) to print
+  upstream-selected paths to the execution step's stdout without linting.
+  Configuration selection and the existing pre-execution refusals still apply.
+  Listing does not establish existence, readability, YAML validity or lint
+  success; upstream owns pattern behavior, ordering and duplicate handling.
 - Add the `execute.no_warnings` boolean parameter (default: `false`) to
   suppress warning output without changing yamllint's exit status. Warning-only
   input still exits `2` in strict mode; errors remain visible and exit `1`.

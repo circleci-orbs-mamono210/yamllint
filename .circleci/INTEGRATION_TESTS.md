@@ -1,3 +1,70 @@
+## Phase 4 file-listing checks (#5496)
+
+`execute.list_files` is a boolean with a `false` default. Only `true` adds
+`--list-files` before the target boundary. The existing `Execute yamllint`
+step writes the upstream listing directly to stdout; the separate version
+step is unchanged. No artifact or structured report is created by the Orb.
+The same target parsing and configuration selection apply in both modes.
+
+Run the suite once with each of yamllint 1.37.1 and 1.38.0 installed:
+
+```bash
+python3 .circleci/test-list-files.py -v
+```
+
+The suite requires Python 3.8+, Bash, PyYAML and real yamllint in the running
+Python environment. Missing dependencies or unsupported yamllint versions
+fail the suite. It prints the Python, yamllint, PyYAML and pathspec versions;
+dependency installation and the fixed CI environment belong to #5492.
+
+| Acceptance criterion | Verification in `test-list-files.py` |
+| --- | --- |
+| AC1: configured selection and exclusion | Directory with `yaml-files` and simple `ignore`; compare stdout, stderr, status and exact argv against the same installed upstream |
+| AC2: listing does not lint; false preserves lint | Instrument real `linter.run` to fail if called; listing succeeds, a normal-lint control triggers the guard; unset/false retain normal valid/invalid YAML results |
+| AC3: common validation and settings | Discovery, file-only and data-only selection; child executions with standalone `-` or both settings require status 2, Orb stderr, empty stdout and zero body calls |
+| AC4: strict and format | Both strict values and all five valid upstream formats preserve the listing; invalid format and invalid settings preserve the same installed upstream's rejection |
+| AC5: upstream pattern semantics | Simple common cases are separate from the fixed per-version negative-pattern cases below; no Orb-side correction |
+| AC6: no independent file checks | Source only adds a CLI option; the real-linter guard and nonexistent/invalid fixtures corroborate absence of an Orb existence, readability or YAML-validity gate |
+| AC7: listing success is not lint success | Nonexistent path and invalid YAML each appear in a successful listing but fail normal lint in separate calls |
+
+The pattern fixture contains `fixtures/keep.yml`, `drop.yml`, `skip.yml`,
+`extra.yaml`, `note.txt` and `sub/keep.yml` (all under `fixtures/`).
+The following are fixed expected memberships, not fixed output ordering:
+
+| Configuration | yamllint 1.37.1 | yamllint 1.38.0 |
+| --- | --- | --- |
+| Common: `yaml-files: ['*.yml']`, `ignore: ['fixtures/skip.yml']` | keep.yml, drop.yml, sub/keep.yml | Same |
+| Negative `yaml-files: ['*.yml', '!drop.yml']`, no ignore | keep.yml, skip.yml, sub/keep.yml | Same, asserted separately |
+| `yaml-files: ['*.yml', '*.yaml']`, `ignore: ['!keep.yml', 'fixtures/']` | Empty | keep.yml, sub/keep.yml |
+| `yaml-files: ['*.yml', '*.yaml']`, `ignore: ['*.yml', '!fixtures/']` | keep.yml, drop.yml, skip.yml, extra.yaml, sub/keep.yml | extra.yaml |
+
+Each listing is also compared byte-for-byte with a direct invocation of the
+same installed version on the same fixture. The suite records dependency
+versions; the table does not promise identical behavior for arbitrary future
+dependencies. The Orb neither sorts nor deduplicates the upstream output.
+Explicit paths, option-like names, spaces, literal shell text, duplicate
+targets, `./-` and empty-target fallback are checked against upstream too.
+
+The recording shim logs each argument array and calls the real upstream CLI
+in the child process, preserving its actual exit status and output without
+converting failures to success. The parent asserts exactly one body call and
+the full observed result. Both refusal tests invoke the actual source script
+as a subprocess and require zero body calls; the separate version step is
+not part of that count. Executed mutations independently break each refusal
+condition and prove the guard rejects unexpected success, a wrong code,
+missing/misdirected diagnostics and a body call. Additional executed mutants
+prove detection of no invocation, a missing listing flag, wrong status,
+extra stdout/stderr and a dropped target.
+
+Listing success is not proof of existence, readability, YAML validity or lint
+success. Upstream argument and configuration validation still runs, and its
+errors are propagated. Valid `strict`, `format` and `no_warnings` do not
+change listing results; the `no_warnings` integration is owned by #5492.
+These are source/local checks. #5492 owns the fixed cimg/python compatibility
+matrix, mandatory CI wiring, packed/expanded execution and release dependencies;
+handoff must identify the exact integrated revision and rerun these cases.
+#5497 owns the full user documentation and #5493 owns publication.
+
 ## Phase 3 warning-display checks (#5495)
 
 `execute.no_warnings` is a boolean with a `false` default. Only `true` adds

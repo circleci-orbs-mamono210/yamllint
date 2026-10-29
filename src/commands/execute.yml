@@ -38,6 +38,14 @@ parameters:
       Hide warning output without changing yamllint's exit status.
       Warning-only input still returns exit status 2 in strict mode.
       Errors remain visible and return exit status 1.
+  list_files:
+    type: boolean
+    default: false
+    description: >
+      Print the files selected by yamllint to this step's stdout without
+      linting them. Selection and exclusion follow upstream configuration.
+      Listing does not prove existence, readability, YAML validity or lint
+      success, and adds no ordering or deduplication guarantees.
   format:
     type: string
     default: ""
@@ -57,5 +65,6 @@ steps:
         PARAM_CONFIG_DATA: << parameters.config_data >>
         PARAM_STRICT: << parameters.strict >>
         PARAM_NO_WARNINGS: << parameters.no_warnings >>
+        PARAM_LIST_FILES: << parameters.list_files >>
         PARAM_FORMAT: << parameters.format >>
       command: <<include(scripts/execute.sh)>>
