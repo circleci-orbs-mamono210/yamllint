@@ -31,6 +31,13 @@ parameters:
     description: >
       Enable yamllint strict mode. Warnings cause yamllint to return
       a non-zero exit status when enabled.
+  no_warnings:
+    type: boolean
+    default: false
+    description: >
+      Hide warning output without changing yamllint's exit status.
+      Warning-only input still returns exit status 2 in strict mode.
+      Errors remain visible and return exit status 1.
   format:
     type: string
     default: ""
@@ -49,5 +56,6 @@ steps:
         PARAM_CONFIG_FILE: << parameters.config_file >>
         PARAM_CONFIG_DATA: << parameters.config_data >>
         PARAM_STRICT: << parameters.strict >>
+        PARAM_NO_WARNINGS: << parameters.no_warnings >>
         PARAM_FORMAT: << parameters.format >>
       command: <<include(scripts/execute.sh)>>

@@ -1,3 +1,44 @@
+## Phase 3 warning-display checks (#5495)
+
+`execute.no_warnings` is a boolean with a `false` default. Only `true` adds
+`--no-warnings` before the target boundary. It changes warning display, not
+rule severity or exit-code handling. Warning-only input returns `0` without
+strict mode and `2` with strict mode, even when warnings are hidden. Errors
+remain visible and return `1` with either strict value.
+
+Run the feature checks from the repository root:
+
+```bash
+python3 .circleci/test-no-warnings.py -v
+```
+
+The suite requires Python 3.8+, Bash, PyYAML and actual yamllint in the running
+Python environment. Missing dependencies fail the suite. It prints the
+installed yamllint and Python versions and does not install dependencies.
+
+| Acceptance criterion | Verification in `test-no-warnings.py` |
+| --- | --- |
+| AC1: warning-only, no strict | Assert empty warning output and status `0` independently |
+| AC2: warning-only, strict | Assert empty warning output and status `2` independently |
+| AC3: error present | Use a fixture with both a warning and a trailing-spaces error; check error visibility, warning suppression and status `1` for both strict values |
+| AC4: unset or false | Require unchanged argv, stdout, stderr and status against the same installed upstream without `--no-warnings`; compare unset and false results |
+
+The verification shim calls real yamllint, captures its actual arguments,
+status, stdout and stderr, and only returns success if all values exactly
+match the expected observation. That expectation is first checked against
+the required status and warning/error output conditions. A completion marker
+and exactly-one-call check prevent an unexecuted command from passing.
+Each acceptance case is also run through the upstream CLI entry point without
+the verifier's success conversion, checking the Orb's real exit status.
+
+Negative controls demonstrate detection of unexpected success, wrong status,
+missing or extra output, changed arguments and no invocation. The suite also
+checks source parameter wiring, `config_data`, and multiple selected targets.
+These local checks do not establish a CircleCI run or a published-Orb result.
+#5492 owns the fixed cimg/python compatibility matrix, CI integration,
+`strict`/`format` and `list_files` integration, and publication dependencies.
+#5497 owns the complete user documentation; #5493 owns publication.
+
 ## Phase 2 configuration-data checks (#5494)
 
 `execute.config_data` is a string with an empty default. Empty values omit

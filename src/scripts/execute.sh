@@ -30,6 +30,10 @@ case "${PARAM_STRICT:-false}" in
         ;;
 esac
 
+if [[ "${PARAM_NO_WARNINGS:-false}" == "true" ]]; then
+    YAMLLINT_ARGS+=("--no-warnings")
+fi
+
 if [[ -n "${PARAM_FORMAT:-}" ]]; then
     YAMLLINT_ARGS+=("--format" "${PARAM_FORMAT}")
 fi

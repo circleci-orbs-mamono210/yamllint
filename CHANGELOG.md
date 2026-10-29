@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the `execute.no_warnings` boolean parameter (default: `false`) to
+  suppress warning output without changing yamllint's exit status. Warning-only
+  input still exits `2` in strict mode; errors remain visible and exit `1`.
 - Add the `execute.config_data` string parameter (default: empty) to pass
   YAML configuration or an upstream configuration name as one literal
   argument. Empty values retain the existing configuration discovery or
