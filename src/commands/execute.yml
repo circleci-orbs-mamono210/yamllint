@@ -52,6 +52,22 @@ parameters:
     description: >
       Output format passed to yamllint. If empty, yamllint uses
       its default output format.
+  output_file:
+    type: string
+    default: ""
+    description: >
+      Path of a new file that receives yamllint's stdout. Empty disables
+      saving and keeps the existing behavior. When set, yamllint's stdout is
+      connected to a pipe (not a terminal), streamed to this step's stdout
+      and saved unchanged; stderr is not saved. The value is used as a
+      literal path without ~, variable or glob expansion; relative paths
+      start from the working directory. Saving requires python3 on PATH.
+      The parent directory must exist, an existing entry is never replaced,
+      and the path must be outside every target directory and differ from
+      the target files and config_file; otherwise exit status 2 is returned
+      before linting. If yamllint succeeds but saving or log forwarding
+      fails, the exit status is 2; otherwise yamllint's exit status is
+      returned.
 
 steps:
   - run:
@@ -67,4 +83,5 @@ steps:
         PARAM_NO_WARNINGS: << parameters.no_warnings >>
         PARAM_LIST_FILES: << parameters.list_files >>
         PARAM_FORMAT: << parameters.format >>
+        PARAM_OUTPUT_FILE: << parameters.output_file >>
       command: <<include(scripts/execute.sh)>>

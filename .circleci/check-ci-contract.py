@@ -21,7 +21,7 @@ PARAMETERS = {
     "targets": "PARAM_TARGETS", "config_file": "PARAM_CONFIG_FILE",
     "config_data": "PARAM_CONFIG_DATA", "strict": "PARAM_STRICT",
     "no_warnings": "PARAM_NO_WARNINGS", "list_files": "PARAM_LIST_FILES",
-    "format": "PARAM_FORMAT",
+    "format": "PARAM_FORMAT", "output_file": "PARAM_OUTPUT_FILE",
 }
 TAG_FILTER = "/^v[0-9]+\\.[0-9]+\\.[0-9]+$/"
 CONFIG_PATH = "/tmp/yamllint-phase5/injected.yml"

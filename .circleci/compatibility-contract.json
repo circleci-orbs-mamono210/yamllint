@@ -25,7 +25,7 @@
     "test-no-warnings.py": "a09f6013035583e63d7f20f178b965487d80637feda1fb26b2a8f8fbef50e1fd",
     "test-list-files.py": "9618e6bfbad4d4a7d6969d770dd6db3dc5c212108c49a88f521c744799c6ff15",
     "test-boolean-runtime.py": "3063f9e8873d66099d9c01597ca1fa5e915f3b31ce9062fdbe99d1f0b928f853",
-    "verify-boolean-parameters.py": "cecf5265faee49b339fc16cbd69de7241c1363ba1b750c1d2030454651107a59"
+    "verify-boolean-parameters.py": "cb112122aea96f84ed47833e3e2d2c2e0bfeffd4295a892e2b5dab42f0b22d70"
   },
   "versions": [
     "1.37.1",

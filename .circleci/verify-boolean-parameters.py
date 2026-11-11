@@ -90,7 +90,8 @@ def validate(case, argv, status, stdout, stderr):
 
 
 PARAMETERS = ('PARAM_CONFIG_FILE', 'PARAM_CONFIG_DATA', 'PARAM_TARGETS',
-              'PARAM_STRICT', 'PARAM_NO_WARNINGS', 'PARAM_LIST_FILES', 'PARAM_FORMAT')
+              'PARAM_STRICT', 'PARAM_NO_WARNINGS', 'PARAM_LIST_FILES', 'PARAM_FORMAT',
+              'PARAM_OUTPUT_FILE')
 
 
 def validate_raw(case, raw):

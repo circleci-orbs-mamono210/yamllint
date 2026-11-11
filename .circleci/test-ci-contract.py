@@ -5,6 +5,7 @@ import importlib.util
 import os
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 
 spec = importlib.util.spec_from_file_location("contract", Path(__file__).with_name("check-ci-contract.py"))
@@ -144,6 +145,44 @@ class ConfigContract(unittest.TestCase):
         job["steps"].remove(step)
         job["steps"].insert(1, step)
         self.rejected()
+
+    # output_file (#5508): each check of the new parameter set and mapping
+    # must reject its own fault, identified by the check's message.
+    def rejected_by(self, message):
+        with self.assertRaisesRegex(AssertionError, message):
+            contract.verify(self.c)
+
+    def test_output_file_removed_from_source_api(self):
+        del self.c["command"]["parameters"]["output_file"]
+        self.rejected_by("Public parameter set changed")
+
+    def test_verifier_parameter_set_without_output_file(self):
+        parameters = {k: v for k, v in contract.PARAMETERS.items() if k != "output_file"}
+        with patch.object(contract, "PARAMETERS", parameters):
+            self.rejected_by("Public parameter set changed")
+
+    def test_output_file_source_mapping_changed(self):
+        execute = contract.runs(self.c["command"], "Execute yamllint")[0]
+        execute["environment"]["PARAM_OUTPUT_FILE"] = "<< parameters.format >>"
+        self.rejected_by("Source parameter mapping changed")
+
+    def test_packed_output_file_default_changed(self):
+        self.c["packed"]["commands"]["execute"]["parameters"]["output_file"]["default"] = "lint.txt"
+        self.rejected_by("Packed API differs from source")
+
+    def test_packed_output_file_mapping_changed(self):
+        execute = contract.runs(self.c["packed"]["commands"]["execute"], "Execute yamllint")[0]
+        execute["environment"]["PARAM_OUTPUT_FILE"] = "<< parameters.targets >>"
+        self.rejected_by("Packed parameter mapping mismatch")
+
+    def test_expanded_output_file_value_changed(self):
+        execute = contract.runs(self.c["expanded"]["jobs"]["command-tests"], "Execute yamllint")[0]
+        execute["environment"]["PARAM_OUTPUT_FILE"] = "lint.txt"
+        self.rejected_by("Expanded execute mapping mismatch")
+
+    def test_expanded_output_file_mapping_missing(self):
+        del contract.runs(self.runtime_job(), "Execute yamllint")[0]["environment"]["PARAM_OUTPUT_FILE"]
+        self.rejected_by("Expanded execute mapping mismatch")
 
 
 if __name__ == "__main__":
