@@ -1,13 +1,14 @@
 description: >
   Pass multiline YAML or the upstream name relaxed with config_data.
   Empty config_data means unspecified; leave config_file empty when
-  supplying data. This example targets v2.1.0.
+  supplying data. This example targets v2.2.0; config_data was added
+  in v2.1.0.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.1.1
+    yamllint: orbss/yamllint@2.2.0
 
   jobs:
     lint-with-data:

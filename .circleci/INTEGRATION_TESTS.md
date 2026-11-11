@@ -6,6 +6,165 @@ below describe test ownership and assertions. Running those suites locally
 is supplementary; the following recorded CircleCI run establishes the
 integrated source-Orb result for its exact revision.
 
+## Phase 1 and 2 output-file checks for v2.2.0
+
+This section records the verification of `execute.output_file` from #5508,
+#5509 (Phase 1, parent #5506) and #5510 (Phase 2), and the split between
+pre-publication and post-publication checks. Counts in the older sections
+below belong to their own revisions.
+
+### Recorded source CI
+
+- Phase 1 source: [8fc9dcc](https://github.com/circleci-orbs-mamono210/yamllint/commit/8fc9dcc3a410ef77e08bde65178d9f0cd2d651b5).
+  The three Phase 1 suites were verified locally for that revision and
+  recorded in #5506; they were not yet part of the fixed-matrix CI.
+- Phase 2 source: [239092a](https://github.com/circleci-orbs-mamono210/yamllint/commit/239092af05f6879212162c3b19a9752b01bb540d).
+  All 24 reported CircleCI commit checks succeeded for this revision. The
+  results below are the ones recorded in #5510 after its review of the code
+  and the CircleCI artifacts.
+- [Continue 1863](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1863)
+  retained `phase5-config/contract-result.json` and
+  `contract-negative-controls.log`: the source/packed/expanded comparisons
+  passed and all 55 configuration fault-control test methods passed.
+- [Downstream pack 1908](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1908)
+  succeeded. This is source verification, not a production-publish result.
+
+| yamllint | Configured image | Child-process, boolean and observer-control suites | Real `output_file` steps |
+| --- | --- | --- | --- |
+| 1.37.1 | cimg/python:3.13 | [1876](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1876) | [1879](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1879) |
+| 1.37.1 | cimg/python:3.14 | [1877](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1877) | [1865](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1865) |
+| 1.38.0 | cimg/python:3.13 | [1878](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1878) | [1872](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1872) |
+| 1.38.0 | cimg/python:3.14 | [1870](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1870) | [1873](https://circleci.com/gh/circleci-orbs-mamono210/yamllint/1873) |
+
+No output-file check is limited to a representative environment. Special
+files, write failures through `RLIMIT_FSIZE`, log failures through
+`/dev/full` and a closed pipe, directory permission bits and pseudo-terminal
+cases run in all four pairs. Pairs or environments not listed here are not
+covered. Local runs of the same suites are supplementary only.
+
+### Child-process suites (#5508, #5509, #5506)
+
+Every case runs the real `src/scripts/execute.sh` as a child process from a
+temporary directory outside the repository. The parent checks the Orb's final
+exit status, stdout, stderr, created entries and body calls, and reports
+success only afterwards. Non-zero statuses are never converted to success
+before the Orb. Cases with real yamllint are separate from cases that use a
+controlled stand-in for fixed bytes, statuses, streaming or races.
+
+| Suite (owner) | Methods | Scope |
+| --- | --- | --- |
+| `test-output-file.py` (#5508) | 20 | Public parameter and wiring; saving disabled keeps the stdout connection, statuses and files, and needs no `python3`; real-yamllint cases with saved bytes equal to stdout; stand-in bytes (CR, NUL, invalid UTF-8, colors, no final newline, more than 64 KiB) and statuses; literal path; yamllint's stdout is a pipe only when saving; `auto` format follows that connection; output is forwarded before the body exits; a non-blocking step stdout is waited for; body status combined with save/log outcomes; preparation failures; body start failure is not a result; entries created during the run are kept; write failure leaves no partial result; directory permissions |
+| `test-output-destination.py` (#5509) | 13 | Newline/CR; existing regular file, directory, symlink, broken symlink and special file; missing or invalid parent; same path as a target file or `config_file`; inside a target directory, including a target that is itself a symlink and alternative spellings; upstream exclusions do not relax the rule; a symlink inside a target directory; `.` target with an outside destination; file targets with a destination in the working directory; existing input refusals precede `output_file` checks |
+| `test-output-phase1.py` (#5506) | 8 | One method per row of the roadmap's exit-status table (seven rows) with real yamllint, plus a check that the result file and temporary data do not change target selection or lint results |
+
+Fault detection is part of the same suites: `test-output-file.py` runs its
+checks against broken copies of the script (for example a missing file,
+missing or changed bytes, stderr mixed in, a wrong exit status, an ignored
+save failure, a replaced existing file, a body that is not run, output held
+until the end) and requires each to be rejected; `test-output-destination.py`
+does the same for broken refusals.
+
+Since #5510, `run-compatibility.py` runs these three suites and
+`test-output-runtime.py` (23 methods) in every compatibility job, after the
+five earlier suites. Each job therefore runs 113 test methods, or 127 on
+1.38.0/Python 3.14, where the 14 target-boundary methods are added. The
+boolean observer has recorded eight public parameter variables, including
+`PARAM_OUTPUT_FILE`, since #5506.
+
+### Real `yamllint/execute` steps with `output_file` (#5510)
+
+Each `output-file-<yamllint>-py<python>` job installs the fixed yamllint
+version and runs ten typed `yamllint/execute` steps from the packed source
+Orb. `verify-output-file.py` observes them without adding a pipe or
+pseudo-terminal: a `BASH_ENV` hook records each step shell's own
+stdout/stderr, and a recorder at the body position records argv, raw
+`PARAM_*` values and its own stdout/stderr, runs the real yamllint with the
+inherited connections and returns its real exit status. The existing
+`verify-boolean-parameters.py` is not used as evidence here.
+
+| Case | Saving | Purpose |
+| --- | --- | --- |
+| `saving-omitted`, `saving-empty` | Disabled | yamllint keeps the step's stdout; no entry is created |
+| `absolute-parsable` | Absolute path | One warning line saved |
+| `relative-strict-clean` | Relative path | `strict` with clean input; 0-byte file |
+| `hidden-warning` | Absolute path | `no_warnings`; 0-byte file |
+| `config-file` | Relative path | `config_file` together with saving |
+| `list-files` | Absolute path | `list_files`; the listing is saved |
+| `auto-format` | Relative path | Empty `format`; standard format on a non-terminal stdout |
+| `colored-format` | Absolute path | Color control characters are kept |
+| `long-literal-path` | Relative path | Several targets, hyphen-leading and non-ASCII names, more than 64 KiB; destination name with spaces, quotes, `~`, `$HOME` and glob characters used literally |
+
+For every case the final step requires: the body exited `0`; argv and raw
+parameters match the typed values; yamllint's stderr is the step's stderr;
+with saving, yamllint's stdout is a non-terminal connection different from
+the step's stdout and exactly one new regular file exists; the saved bytes
+equal a separate reference run of the same yamllint with a pipe as stdout;
+no temporary file remains. `test-output-runtime.py` requires broken scripts
+and corrupted observations to be rejected.
+
+In the recorded jobs, the step's stdout was a terminal; with saving enabled,
+yamllint's stdout was a non-terminal pipe; with saving disabled, it was the
+step's connection. This describes those jobs only. Artifacts:
+`output-file-runtime/results.json`, `state.json`, `runtime.json`, and the
+saved and reference outputs.
+
+Limits of this observation: it covers the success path only. The bytes that
+reached the CircleCI log were not captured, because that would need the API
+or an added pipe. Equality of the Orb's stdout and the saved file, streaming,
+the Orb's non-zero paths and the save/forwarding failures are established by
+the child-process suites above, not by these steps.
+
+### Publication gate and configuration checks (#5510)
+
+Downstream pack requires the eleven original jobs, the four-job
+`compatibility-matrix` alias and the four-job `output-file-matrix` alias:
+nineteen success dependencies in the expanded configuration. Production
+publish requires that pack and alone receives `CIRCLECI_ORBS`; the tag and
+branch filters are unchanged. `check-ci-contract.py` additionally checks the
+`output_file` type, default and mapping in source, packed Orb and expanded
+configuration; three compile-only probes covering two non-default
+`output_file` values and one explicitly empty value; the complete suite list
+of the compatibility jobs; the ordered steps
+of the output-file jobs; and the pinned SHA-256 of every feature-owned suite
+and observer. The eleven legacy job hashes and the boolean job hash are
+unchanged.
+
+### Pre-publication versus post-publication scope for v2.2.0
+
+The roadmap (`220_ロードマップ` version 2, Phase 2) owns this split. The
+right-hand column is planned work for #5514 and is not a result.
+
+| Check | Before publication | After publication (#5514) |
+| --- | --- | --- |
+| Body exits `0`: saving disabled/enabled, parameter delivery, stdout equal to the saved file | Real `yamllint/execute` steps with the observer, and child-process suites | Direct execution of the registry Orb in success-required jobs |
+| Body exits non-zero (`1`, `2`, including a silent strict warning): saving and the Orb's exit status | Child process of the real script with real yamllint; the parent checks status, stdout, stderr and file | D08: one intentionally failing job with a lint error and exit status `1`. Other non-zero paths are traced, not executed directly |
+| Save failure, log-forwarding failure, and status priority when the body is also non-zero | Child-process suites with controlled real failures | D09 option (a): traced through pre-publication checks, embedding checks and published-artifact equality |
+| Existing destination, conflicts with targets or `config_file`, other destination refusals; existing input refusals | Child-process suites: status `2`, Orb stderr, no body call, destination unchanged | D09 option (a): traced in the same way as the existing refusals |
+| Script embedding and parameter delivery | Same revision's source, packed Orb and expanded configuration, including non-default `output_file` values | Full-content equality of the final RC's packed Orb and the published Orb (#5513) |
+| Streaming of stdout while the body runs | Child-process suite with a controlled body; an implementation that holds output until the end is rejected | Traced through pre-publication checks, embedding checks and published-artifact equality |
+| Artifact retrieval after a failed real step | Prepared and checked before the final RC by #5512; not a substitute for the published check | D08: the failed body step and its exit status `1`, the following file check, and the retrieved artifact |
+
+The streaming check is evidence for the Orb's relay only. It makes no claim
+about yamllint's own buffering or the display timing of the CircleCI UI.
+The log-forwarding failure is verified with controlled failures; no method
+to make a real CircleCI step log fail is known. D08's job stays failed in
+CircleCI even when it meets its expectation; it is recorded separately and
+is not part of the success-required source CI.
+
+### Documentation prepared by #5511
+
+README, all six examples and the CHANGELOG `Unreleased` entries describe the
+adopted `output_file` contract for `orbss/yamllint@2.2.0`. Those references
+are prepared release usage, not evidence of registry availability. Check the
+type, default and description against `src/commands/execute.yml`, and the
+saving, destination, format and exit-status statements against
+`src/scripts/execute.sh` and the suites above. Statements about CI refer to
+the recorded source CI in this section; none of them is a result of the
+published Orb. Version heading, date and comparison links are finalized by
+#5513. Examples are part of the packed Orb, so the documentation commit
+needs its own `orb-tools/lint`, `orb-tools/review` and `orb-tools/pack`
+results.
+
 ## v2.1.1 boolean runtime regression (#5504)
 
 The historical evidence below is retained for its recorded revision. It does
@@ -169,7 +328,8 @@ continued; invalid probe inputs do not create intentionally failing CI jobs.
 
 Downstream pack requires all eleven original jobs and the complete four-job
 `compatibility-matrix` alias. Expanded config must name all fifteen success
-dependencies. Production publish requires that pack, keeps the existing
+dependencies. Since #5510 it also requires the four-job `output-file-matrix`
+alias, nineteen success dependencies in total; see the v2.2.0 section above. Production publish requires that pack, keeps the existing
 release-tag/branch filters, and alone receives `CIRCLECI_ORBS`.
 No release tag or publication is performed by these checks.
 
@@ -405,7 +565,8 @@ results are recorded above. The historical v2.0.0 coverage record follows.
 ## Phase 6 documentation and Phase 7 handoff (#5497 / #5493)
 
 Historical v2.1.0 handoff below: retain it as the earlier scope record.
-Current examples target v2.1.1, and #5504 uses RELEASE_V2_1_1.md. The later
+Examples targeted v2.1.1 for #5504, which used RELEASE_V2_1_1.md; #5511
+prepares them for v2.2.0. The later
 published v2.1.0 consumer failure is documented in BOOLEAN_RUNTIME_FIX.md.
 
 The README describes the adopted #5491 behavior changes; #5497 does not

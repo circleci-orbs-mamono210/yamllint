@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Preparation for v2.2.0. The version heading, date and comparison links are
+finalized in #5513. These notes are not release evidence; publication and
+independent consumer verification are recorded separately.
+
+### Added
+
+- Add the `execute.output_file` string parameter (default: empty) to save
+  yamllint's stdout to a new file while still writing it to the step's
+  stdout. Empty or omitted disables saving: no destination checks, no files
+  and no stdout relay, so existing output, exit statuses and refusals are
+  unchanged.
+- Save only the stdout of the lint/listing call, unchanged. stderr and the
+  version-display step are not saved. An empty output creates a 0-byte file;
+  with `list_files`, the listing is saved. The file is a list of diagnostics
+  and does not establish lint success.
+- Treat `output_file` as a literal path without `~`, variable or glob
+  expansion. Require an existing parent directory and a new file; never
+  replace an existing entry. Refuse a path inside a target directory or equal
+  to a target file or `config_file`, compared after resolving symbolic links.
+  Refusals return exit status `2` with a `yamllint Orb: output_file:`
+  diagnostic before yamllint runs.
+- While saving, connect yamllint's stdout to a pipe (never a terminal or
+  pseudo-terminal) and forward output as it arrives. Explicit `format` values
+  are passed unchanged; automatic format selection can differ from a run
+  without saving. Saving requires `python3` on `PATH`.
+- Return yamllint's non-zero exit status unchanged and still save its output.
+  When yamllint exits `0` but saving or log forwarding fails, return `2`.
+  Leave no partial file at `output_file` when saving fails.
+- Add the `output_file` example with `store_artifacts`. Uploading remains the
+  caller's step; the Orb does not upload artifacts.
+
+### Changed
+
+- Run the output-file child-process suites and the step-observer fault
+  controls in all four compatibility jobs. Add four `output-file-*` jobs that
+  observe real `yamllint/execute` steps with typed `output_file` values.
+- Require the four `output-file-*` jobs, in addition to the eleven existing
+  jobs and the four compatibility jobs, before downstream pack and publish.
+  Check non-default `output_file` delivery in source, packed Orb and
+  expanded configuration.
+- Prepare README and every example for `orbss/yamllint@2.2.0`. Document
+  saving rules, exit statuses, artifact upload and the split between
+  pre-publication checks and planned published-consumer checks.
+
 ## [2.1.1] - 2026-10-29
 
 Preparation for #5504. Publication and independent consumer verification

@@ -1,13 +1,14 @@
 description: >
   Pass hyphen-leading names as literal paths after the CLI boundary.
   Use ./- for a file named -; a standalone - is refused in both modes.
-  This example targets v2.1.0.
+  This example targets v2.2.0; literal target handling was adopted in
+  v2.1.0.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.1.1
+    yamllint: orbss/yamllint@2.2.0
 
   jobs:
     literal-paths:

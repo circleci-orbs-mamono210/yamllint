@@ -1,13 +1,15 @@
 description: >
   List upstream-selected YAML paths in the repository without linting.
   Success does not prove existence, readability, valid YAML or lint success.
-  This example targets v2.1.0.
+  With output_file the listing can also be saved to a file; that file
+  is not proof of lint success either. This example targets v2.2.0;
+  list_files was added in v2.1.0.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.1.1
+    yamllint: orbss/yamllint@2.2.0
 
   jobs:
     list-yaml:

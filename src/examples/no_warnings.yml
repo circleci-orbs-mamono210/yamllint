@@ -1,13 +1,14 @@
 description: >
   Hide warnings while keeping upstream exit behavior. This warning-only
   fixture succeeds with strict false; changing strict to true returns 2
-  even with no warning output. This example targets v2.1.0.
+  even with no warning output. This example targets v2.2.0;
+  no_warnings was added in v2.1.0.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.1.1
+    yamllint: orbss/yamllint@2.2.0
 
   jobs:
     warning-display:

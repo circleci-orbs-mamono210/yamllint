@@ -1,11 +1,11 @@
 description: >
-  Install and execute yamllint with v2.1.0 using the minimal workflow.
+  Install and execute yamllint with v2.2.0 using the minimal workflow.
 
 usage:
   version: 2.1
 
   orbs:
-    yamllint: orbss/yamllint@2.1.1
+    yamllint: orbss/yamllint@2.2.0
 
   jobs:
     execute-yamllint:

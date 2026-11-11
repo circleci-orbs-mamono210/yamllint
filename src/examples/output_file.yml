@@ -1,0 +1,37 @@
+description: >
+  Save yamllint's stdout to a new file with output_file and upload it with
+  store_artifacts, which also runs after a failed lint step. The file is a
+  list of diagnostics, not proof of success: it can be empty when the step
+  fails, so judge the result by the exit status. The parent directory must
+  exist, an existing file is never replaced, and with targets "." the file
+  must be outside the working directory. The path is literal: ~ and $HOME
+  are not expanded. This example targets v2.2.0, which adds output_file.
+
+usage:
+  version: 2.1
+
+  orbs:
+    yamllint: orbss/yamllint@2.2.0
+
+  jobs:
+    lint-and-save:
+      executor: yamllint/default
+      steps:
+        - checkout
+        - run:
+            name: Prepare yamllint result directory
+            command: mkdir -p /tmp/yamllint-results
+        - yamllint/install:
+            version: "1.38.0"
+        - yamllint/execute:
+            targets: .
+            format: parsable
+            output_file: /tmp/yamllint-results/lint.txt
+        - store_artifacts:
+            path: /tmp/yamllint-results
+            destination: yamllint-results
+
+  workflows:
+    save-lint-output:
+      jobs:
+        - lint-and-save

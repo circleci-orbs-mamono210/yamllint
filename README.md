@@ -4,21 +4,23 @@
 
 CircleCI Orb for running yamllint.
 
-This documentation targets **orbss/yamllint@2.1.1**. Development verification
-uses the packed source Orb injected inline. Registry availability and
-independent consumer verification are tracked separately in #5504; a source
+This documentation targets **orbss/yamllint@2.2.0** and is prepared before
+that release. Until 2.2.0 is published, the Orb Registry does not provide it,
+and the published 2.1.1 does not have `output_file`. Development verification
+uses the packed source Orb injected inline. Publication (#5513) and
+independent consumer verification (#5514) are tracked separately; a source
 test result alone does not establish either outcome.
 
 ## Usage
 
-The following minimal configuration uses `orbss/yamllint@2.1.1`.
+The following minimal configuration uses `orbss/yamllint@2.2.0`.
 The referenced release must be available in the Orb Registry.
 
 ```yaml
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@2.1.1
+  yamllint: orbss/yamllint@2.2.0
 
 jobs:
   lint:
@@ -36,7 +38,7 @@ workflows:
 
 ## Migrating from v1 to v2
 
-For v2.1.1, update the Orb reference to `orbss/yamllint@2.1.1`, and rename the
+For v2.2.0, update the Orb reference to `orbss/yamllint@2.2.0`, and rename the
 `yamllint/execute` parameter `config-file` to `config_file` in every
 invocation. There is no compatibility alias for `config-file` in v2;
 a configuration that still passes the old name must be updated before
@@ -70,13 +72,13 @@ workflows:
       - lint
 ```
 
-### After: v2.1.1
+### After: v2.2.0
 
 ```yaml
 version: 2.1
 
 orbs:
-  yamllint: orbss/yamllint@2.1.1
+  yamllint: orbss/yamllint@2.2.0
 
 jobs:
   lint:
@@ -96,11 +98,11 @@ workflows:
       - lint
 ```
 
-The existing parameter names, types and defaults are retained in v2.1.1.
+The existing parameter names, types and defaults are retained in v2.2.0.
 Target interpretation has the specific migration changes described below.
 The complete `execute` API is:
 
-| Parameter | Type | Default | Behavior in v2.1.1 |
+| Parameter | Type | Default | Behavior in v2.2.0 |
 | --- | --- | --- | --- |
 | `targets` | string | `.` | Literal file/directory paths, one per line; applies to lint and listing |
 | `config_file` (v1: `config-file`) | string | `""` | Configuration path; mutually exclusive with non-empty `config_data` |
@@ -109,6 +111,7 @@ The complete `execute` API is:
 | `no_warnings` | boolean | `false` | Hide warning output without changing the exit status |
 | `list_files` | boolean | `false` | Print upstream-selected paths without linting |
 | `format` | string | `""` | Pass an output format to yamllint; an empty value keeps its default format |
+| `output_file` | string | `""` | Added in v2.2.0. Save yamllint's stdout to a new file at this path; an empty value disables saving |
 
 `format` remains a string parameter, not an Orb enum. Format values are
 interpreted by the installed yamllint version. The underlying yamllint CLI
@@ -148,6 +151,18 @@ steps:
 
 Both files must be present for normal lint. See the self-contained
 [target-path example](src/examples/target_paths.yml) and [CHANGELOG](CHANGELOG.md).
+
+## Migrating from v2.1 to v2.2
+
+No change is required. v2.2.0 adds one optional `execute` parameter,
+`output_file` (string, default `""`). While it is omitted or empty, the Orb
+checks no destination, creates no file and does not relay stdout: yamllint
+keeps the step's stdout, and the output, exit statuses and refusals described
+for v2.1 are unchanged.
+
+Saving has its own requirements and failure rules. Read
+[Save the output to a file](#save-the-output-to-a-file) before setting
+`output_file`.
 
 ## Executor
 
@@ -248,7 +263,7 @@ python -m pip install "yamllint==1.37.1"
 
 This README's `1.37.1` example on the default `cimg/python:3.14` executor
 is one of the four [verified combinations](#verified-compatibility).
-The Orb version (`2.1.1`) and installed yamllint version (`1.37.1`) are
+The Orb version (`2.2.0`) and installed yamllint version (`1.37.1`) are
 different version choices. A default install may resolve to a newer upstream
 version; it is not a fixed-version compatibility guarantee.
 
@@ -440,7 +455,13 @@ steps:
 The execution step writes upstream's selected paths to stdout. The separate
 version-display step still runs. `targets`, configuration discovery,
 `config_file`/`config_data`, exclusions and both Orb refusal rules apply.
-No artifact or structured report is created by the Orb.
+
+With `output_file` omitted or empty, the Orb creates no file. With
+`output_file` set, the listing written to stdout is also saved to that file;
+see [Save the output to a file](#save-the-output-to-a-file). A saved listing
+is not proof of lint success, and it is not a structured report defined by
+the Orb. Uploading it as an artifact is done by your own `store_artifacts`
+step, not by the Orb.
 
 Successful listing does **not** establish that a path exists, can be read,
 contains valid YAML or passes lint. For example, upstream can list an
@@ -460,6 +481,142 @@ See the version-specific fixtures in
 [INTEGRATION_TESTS.md](.circleci/INTEGRATION_TESTS.md#phase-4-file-listing-checks-5496)
 and the complete [listing example](src/examples/list_files.yml).
 
+### Save the output to a file
+
+`output_file` (string, default `""`) is added in v2.2.0. When it is set,
+yamllint's stdout is still written to the step's stdout, and the same bytes
+are saved to a new file at that path. When it is omitted or empty, nothing
+in the sections above changes.
+
+```yaml
+steps:
+  - checkout
+  - run:
+      name: Prepare yamllint result directory
+      command: mkdir -p /tmp/yamllint-results
+  - yamllint/install:
+      version: "1.38.0"
+  - yamllint/execute:
+      targets: .
+      format: parsable
+      output_file: /tmp/yamllint-results/lint.txt
+  - store_artifacts:
+      path: /tmp/yamllint-results
+      destination: yamllint-results
+```
+
+This lints the checkout and saves the output to a new file outside it. See
+the complete [output-file example](src/examples/output_file.yml).
+
+#### What the file contains
+
+- Only the stdout of the yamllint lint/listing call. The Orb adds no header,
+  version, timestamp or success message, and does not reformat the output.
+- stderr is not saved; it stays on the step's stderr. The output of the
+  separate version-display step is not saved either.
+- With `list_files: true`, the file contains the listing. A listing does not
+  establish lint success.
+- If yamllint prints nothing and saving succeeds, a 0-byte file is created.
+- If yamllint exits non-zero, for example `1` for lint errors, its output is
+  still saved and that exit status is returned.
+
+**The file is a list of diagnostics, not a result.** An empty file can
+belong to a failed step: `no_warnings: true` with `strict: true` exits `2`
+without output, and an error that yamllint reports only on stderr, such as
+an invalid configuration, leaves the file empty. Neither the existence of
+the file nor an empty file means that lint passed. Judge success by the
+step's exit status and the CI result.
+
+#### Where the file can be saved
+
+The Orb checks the destination before yamllint starts. If a rule below is
+not met, the step exits `2` with a diagnostic on stderr that starts with
+`yamllint Orb: output_file:`. yamllint is not run and nothing is created.
+
+- **The path is literal.** `~`, environment variables, globs and shell
+  expressions are not expanded, and leading or trailing whitespace is not
+  removed. `~/reports/lint.txt` and `$HOME/reports/lint.txt` do **not** point
+  to the home directory; they name directories literally called `~` and
+  `$HOME` below the working directory. Write the real path, such as
+  `/tmp/yamllint-results/lint.txt`. A relative path starts from the step's
+  working directory. A path containing a newline or carriage return is
+  refused.
+- **The parent directory must already exist.** The Orb does not create it.
+- **Only a new file is written.** An existing regular file, directory,
+  symbolic link (including a broken one) or special file is never replaced
+  or appended to. If an entry with the same name appears while yamllint is
+  running, it is left unchanged and the step exits `2` (or yamllint's own
+  non-zero status).
+- **The file must be outside every target directory**, and must differ from
+  every target file and from `config_file`. Paths are compared after
+  resolving symbolic links and forms such as `..`. With `targets: .`, which
+  is the default, the file must therefore be outside the working directory.
+  `ignore` settings and file extensions do not relax this rule.
+- **`python3` must be on `PATH`** when saving. It is not needed while
+  `output_file` is empty.
+
+A path cannot be reused. A second `execute` call with the same `output_file`
+in one job is refused, and so is a re-run on a machine that keeps files
+between runs, such as a self-hosted runner. Use a different new path for each
+call, or delete beforehand only those old results whose content and ownership
+you have checked. The Orb never deletes old files, and `mkdir -p` in the
+example above does not remove an old `lint.txt`.
+
+#### Output format while saving
+
+- Saving disabled: the Orb does not relay stdout. yamllint writes directly
+  to the step's stdout, as in v2.1.
+- Saving enabled: yamllint's stdout is connected to a pipe, never to a
+  terminal, and the Orb creates no pseudo-terminal. Output is forwarded to
+  the step's stdout as it arrives; yamllint's own buffering is not changed.
+- An explicit `format` is passed to yamllint unchanged. With
+  `format: colored`, the color control characters appear in the log and in
+  the file; the Orb does not remove them.
+- With `format` empty or `auto`, yamllint chooses the format itself from its
+  environment, including whether its stdout is a terminal. Because stdout is
+  not a terminal while saving, automatic colors and layout can differ from a
+  run without `output_file`. Set an explicit value such as `format: parsable`
+  when the saved format must be stable.
+
+#### Exit status while saving
+
+| yamllint | Saving and log forwarding | Step exit status |
+| --- | --- | --- |
+| Not started: an existing Orb input refusal | Not started | `2`; no file |
+| Not started: destination refused or not preparable | Not started | `2`; no file |
+| Exits `0` | Both succeed | `0` |
+| Exits non-zero | Both succeed | yamllint's status; the output is saved |
+| Exits `0` | Saving or forwarding fails | `2` |
+| Exits non-zero | Saving or forwarding fails | yamllint's status; the failure is also reported on stderr |
+
+Saving problems are reported on stderr with the `yamllint Orb: output_file:`
+prefix. When saving fails, no partial file is left at `output_file`. When
+only forwarding to the step log fails and the complete output was saved, the
+file is kept, and the step still fails as shown above. If yamllint cannot be
+started at all, no result file is created.
+
+#### Upload the file as an artifact
+
+The Orb only creates the file inside the job. Uploading is done by the
+`store_artifacts` step in your configuration; the Orb does not upload or
+share files and does not change their retention.
+
+CircleCI's regular `store_artifacts` step also runs after an earlier step
+has failed (see the
+[configuration reference](https://circleci.com/docs/reference/configuration-reference/#the-when-attribute)).
+In the configuration above, `lint.txt` is therefore uploaded when yamllint
+finds errors and the `execute` step exits `1`. The job is still failed: a
+successful upload is not a successful lint.
+
+A canceled or timed-out job has no such guarantee, and v2.2.0 does not
+guarantee a complete file or upload in that case. Adding an upload in a
+`teardown` step does not add a guarantee from the Orb. While yamllint runs,
+the Orb keeps a temporary file named `.yamllint-orb-output-<random>.tmp` in
+the same directory and removes it when the step ends normally; a forcibly
+stopped step can leave it behind. Uploading the whole directory can then
+include that unfinished file. Only the file at `output_file` is a completed
+output. Set `path` to that file if nothing else should be uploaded.
+
 ### Interpret failures with the diagnostics
 
 Orb input refusals return `2` before the lint/listing body:
@@ -474,10 +631,23 @@ The first two diagnostics start with `yamllint Orb:`. The separate command
 step that displays `yamllint --version` is outside the body-not-invoked
 guarantee and may already have run.
 
+With `output_file` set (v2.2.0), the execution step also returns `2`, with a
+diagnostic on stderr that starts with `yamllint Orb: output_file:`, when:
+
+- The destination is refused or cannot be prepared. yamllint is not run.
+  These checks run after the three refusals above.
+- yamllint exits `0`, but saving the file or forwarding its stdout to the
+  step log fails.
+
 Status `2` is also used by upstream for strict warnings and argument errors
 such as an invalid `format`. **An exit code alone does not uniquely identify
-the cause.** Inspect the diagnostic, inputs and execution context. The Orb
-propagates upstream's exit status without an independent remapping.
+the cause.** Inspect the diagnostic, inputs and execution context.
+
+With `output_file` omitted or empty, the Orb propagates upstream's exit
+status without an independent remapping. With `output_file` set, a non-zero
+upstream status is still returned unchanged; only an upstream `0` becomes `2`
+when saving or log forwarding fails. See
+[Exit status while saving](#exit-status-while-saving).
 
 ## Verified compatibility
 
@@ -524,6 +694,40 @@ Orb to the verified packed Orb; it is not a claim of direct consumer refusal
 testing. The source CI result above does not establish publication or
 post-publication acceptance.
 
+### v2.2.0 output-file checks
+
+For the v2.2.0 preparation, the source-Orb CI at
+[commit 239092a](https://github.com/circleci-orbs-mamono210/yamllint/commit/239092af05f6879212162c3b19a9752b01bb540d)
+ran the following for each of the four pairs above:
+
+- Child-process suites that run the real execution script: saving, exit
+  statuses, destination refusals, streaming and injected save/forwarding
+  failures (20, 13 and 8 test methods), plus 23 fault-control methods for the
+  step observer.
+- Ten real `yamllint/execute` steps with typed parameters: two with saving
+  disabled and eight with `output_file`. Every body exited `0`, and each
+  saved file equals, byte for byte, a separate reference run of the same
+  yamllint.
+
+In those jobs the step's stdout was a terminal and, while saving, yamllint's
+stdout was a non-terminal pipe. This is a record of those runs, not a
+guarantee for other environments. The bytes delivered to the CircleCI log
+were not captured; equality of the forwarded stdout and the saved file,
+streaming, non-zero statuses and the failure paths are established by the
+child-process suites. All of these jobs gate downstream pack and production
+publish. Job links and the scope table are in
+[INTEGRATION_TESTS.md](.circleci/INTEGRATION_TESTS.md#phase-1-and-2-output-file-checks-for-v220).
+
+These are pre-publication source results. They are not results of the
+published `orbss/yamllint@2.2.0`. After publication, #5514 is to use the
+registry Orb directly in an independent consumer configuration: the success
+cases, and one intentionally failing job (a lint error, exit status `1`) to
+confirm that the file can be retrieved as an artifact after the failed step.
+The new destination refusals and the save/forwarding failures are not
+executed directly against the published Orb; they are traced through the
+pre-publication checks, the embedding/delivery checks and equality of the
+published Orb to the verified packed Orb.
+
 ## Release documentation
 
 The [CHANGELOG](CHANGELOG.md) separates `2.1.1` from subsequent Unreleased
@@ -535,7 +739,13 @@ in #5504; a version heading is not proof of publication. Follow the
 [v2.1.1 release procedure](.circleci/RELEASE_V2_1_1.md). The v2.1.0 publication
 and failed consumer result remain recorded separately under #5493.
 
+Changes prepared for `2.2.0` stay under `Unreleased` until #5513 fixes the
+release candidate. The `2.2.0` heading, its date and the comparison links
+(`v2.1.1...v2.2.0` and `v2.2.0...HEAD`) are finalized there. Until then the
+`@2.2.0` references in this README and in the examples are preparation, not
+a claim that the release exists.
+
 orb-tools v12.5.0 **RC011 checks only the bundled examples' Orb major against
-the release tag major**. It does not check this README or full `2.1.1`
+the release tag major**. It does not check this README or full `2.2.0`
 equality. README, every example and CHANGELOG need a separate full-version
 review; a branch-time RC011 skip is not a successful release-tag check.
