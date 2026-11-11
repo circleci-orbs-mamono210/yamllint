@@ -25,7 +25,12 @@
     "test-no-warnings.py": "a09f6013035583e63d7f20f178b965487d80637feda1fb26b2a8f8fbef50e1fd",
     "test-list-files.py": "9618e6bfbad4d4a7d6969d770dd6db3dc5c212108c49a88f521c744799c6ff15",
     "test-boolean-runtime.py": "3063f9e8873d66099d9c01597ca1fa5e915f3b31ce9062fdbe99d1f0b928f853",
-    "verify-boolean-parameters.py": "cb112122aea96f84ed47833e3e2d2c2e0bfeffd4295a892e2b5dab42f0b22d70"
+    "verify-boolean-parameters.py": "cb112122aea96f84ed47833e3e2d2c2e0bfeffd4295a892e2b5dab42f0b22d70",
+    "test-output-file.py": "02cb3690da5dfb73ee443eb04f2907d99818c407dae95f607194899f6ea1e393",
+    "test-output-destination.py": "0fcecad3fdc90d678126fe47629ef09717bcbfdbb29215b8b0b48e9f1eda4c0f",
+    "test-output-phase1.py": "30a67df00078eecc43992cbc3aaad88122c010478063106966c050d088090196",
+    "test-output-runtime.py": "4e2877061c304bb520df528df97501af722dccdac85e8f7414add17455586f52",
+    "verify-output-file.py": "d0c2d57cdcfa8bc1558f25d8f3ad72ca27b7e1553d96087b9d0bfcbcdbda9111"
   },
   "versions": [
     "1.37.1",
@@ -37,5 +42,8 @@
   ],
   "boolean_runtime_job_sha256": "ed8705a44e217bb4b7e4c83e1bc778b4537b8908d1c4c4461c6b419ac253aded",
   "boolean_fix_base_commit": "b8b87391ceb1ce8fc746ea3f690e22c67011bfdd",
-  "boolean_fix_ticket": 5504
+  "boolean_fix_ticket": 5504,
+  "output_runtime_job_sha256": "bab095c81136a058d24068f2567917568e827d1a27546f8968f0bc823f7b5be9",
+  "output_file_integration_base_commit": "8fc9dcc3a410ef77e08bde65178d9f0cd2d651b5",
+  "output_file_integration_ticket": 5510
 }

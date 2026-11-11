@@ -753,6 +753,117 @@ jobs:
           path: /tmp/yamllint-compatibility
           destination: compatibility
 
+  # #5510: real yamllint/execute steps with typed output_file. Each "Observe"
+  # step arms one case; the step observer adds no pipe or PTY (see
+  # .circleci/verify-output-file.py). Every case must exit 0 here.
+  output-file-tests:
+    environment:
+      VERIFICATION_SCOPE: source
+      VERIFICATION_IMAGE: cimg/python:<< parameters.python-version >>
+      EXPECTED_YAMLLINT: << parameters.yamllint-version >>
+    parameters:
+      yamllint-version:
+        type: enum
+        enum: ["1.37.1", "1.38.0"]
+      python-version:
+        type: enum
+        enum: ["3.13", "3.14"]
+    executor:
+      name: yamllint/default
+      image: cimg/python:<< parameters.python-version >>
+    steps:
+      - checkout
+      - yamllint/install:
+          version: << parameters.yamllint-version >>
+      - run:
+          name: Prepare output_file fixtures and step observer
+          command: python .circleci/verify-output-file.py prepare
+      - run:
+          name: Observe saving-omitted
+          command: python .circleci/verify-output-file.py expect saving-omitted
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+      - run:
+          name: Observe saving-empty
+          command: python .circleci/verify-output-file.py expect saving-empty
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: ""
+      - run:
+          name: Observe absolute-parsable
+          command: python .circleci/verify-output-file.py expect absolute-parsable
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: /tmp/yamllint-output-results/absolute-parsable.txt
+      - run:
+          name: Observe relative-strict-clean
+          command: python .circleci/verify-output-file.py expect relative-strict-clean
+      - yamllint/execute:
+          targets: output-fixtures/clean.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          format: parsable
+          output_file: output-results/strict-clean.txt
+      - run:
+          name: Observe hidden-warning
+          command: python .circleci/verify-output-file.py expect hidden-warning
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          no_warnings: true
+          format: parsable
+          output_file: /tmp/yamllint-output-results/hidden-warning.txt
+      - run:
+          name: Observe config-file
+          command: python .circleci/verify-output-file.py expect config-file
+      - yamllint/execute:
+          targets: output-fixtures/long.yml
+          config_file: output-fixtures/config.yml
+          output_file: output-results/config-file.txt
+      - run:
+          name: Observe list-files
+          command: python .circleci/verify-output-file.py expect list-files
+      - yamllint/execute:
+          targets: output-fixtures/listing
+          config_data: "extends: relaxed\nyaml-files: [\"*.yml\", \"*.yaml\"]\nignore: [\"output-fixtures/listing/skip.yml\"]\n"
+          list_files: true
+          output_file: /tmp/yamllint-output-results/list-files.txt
+      - run:
+          name: Observe auto-format
+          command: python .circleci/verify-output-file.py expect auto-format
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          output_file: output-results/auto-format.txt
+      - run:
+          name: Observe colored-format
+          command: python .circleci/verify-output-file.py expect colored-format
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: colored
+          output_file: /tmp/yamllint-output-results/colored-format.txt
+      - run:
+          name: Observe long-literal-path
+          command: python .circleci/verify-output-file.py expect long-literal-path
+      - yamllint/execute:
+          targets: "-output-leading.yml\noutput-fixtures/日本語 ファイル.yml\noutput-fixtures/many-warnings.yml"
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: "output-results/-result ~ $HOME *?[a] \"double\" 'single' 結果.txt"
+      - run:
+          name: Verify output_file observations
+          command: python .circleci/verify-output-file.py finish
+      - store_artifacts:
+          path: .output-evidence
+          destination: output-file-runtime
+
 workflows:
   test-deploy:
     jobs:
@@ -831,6 +942,14 @@ workflows:
               yamllint-version: ["1.37.1", "1.38.0"]
               python-version: ["3.13", "3.14"]
           filters: *filters
+      - output-file-tests:
+          name: output-file-<< matrix.yamllint-version >>-py<< matrix.python-version >>
+          matrix:
+            alias: output-file-matrix
+            parameters:
+              yamllint-version: ["1.37.1", "1.38.0"]
+              python-version: ["3.13", "3.14"]
+          filters: *filters
       - orb-tools/pack:
           executor: orb-pack
           filters: *filters
@@ -848,6 +967,7 @@ workflows:
             - format-test
             - combined-parameters-test
             - compatibility-matrix
+            - output-file-matrix
       - orb-tools/publish:
           orb_name: orbss/yamllint
           vcs_type: << pipeline.project.type >>

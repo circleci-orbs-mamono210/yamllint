@@ -7,6 +7,7 @@ The verified injected.yml is the exact file submitted by orb-tools/continue.
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -34,7 +35,31 @@ PROBES = [
          no_warnings=False, list_files=False, format="standard"),
     dict(targets="-", config_file="settings.yml", config_data="relaxed", strict=False,
          no_warnings=True, list_files=True, format="invalid-format"),
+    # #5510: non-default output_file values, compiled only.
+    dict(targets="first.yml\nsecond dir/", strict=True, format="parsable",
+         output_file="results dir/-lint \"result\" 'q' 結果 $HOME ~ *.txt"),
+    dict(targets="third.yml", config_data="relaxed", no_warnings=True, list_files=True,
+         output_file="/tmp/absolute result.txt\nsecond line"),
+    dict(format="standard", output_file=""),
 ]
+NAME = "-<< matrix.yamllint-version >>-py<< matrix.python-version >>"
+# (source job, workflow alias, expanded name prefix, manifest pin of the source job)
+MATRICES = (
+    ("compatibility-tests", "compatibility-matrix", "compatibility", "boolean_runtime_job_sha256"),
+    ("output-file-tests", "output-file-matrix", "output-file", "output_runtime_job_sha256"),
+)
+# Every behavior suite of each fixed pair (run-compatibility.py SUITES), with its test count.
+MATRIX_SUITES = [
+    ("test-config-data.py", 15), ("test-no-warnings.py", 9), ("test-list-files.py", 17),
+    ("test-combinations.py", 3), ("test-boolean-runtime.py", 5), ("test-output-file.py", 20),
+    ("test-output-destination.py", 13), ("test-output-phase1.py", 8), ("test-output-runtime.py", 23),
+]
+PINNED = ("test-target-boundaries.py", "test-config-data.py", "test-no-warnings.py", "test-list-files.py",
+          "test-boolean-runtime.py", "verify-boolean-parameters.py", "test-output-file.py",
+          "test-output-destination.py", "test-output-phase1.py", "test-output-runtime.py",
+          "verify-output-file.py")
+OUTPUT_PREPARE = "Prepare output_file fixtures and step observer"
+OUTPUT_FINISH = "Verify output_file observations"
 
 
 def require(condition, message):
@@ -89,8 +114,9 @@ def verify_release(config, required, expanded=False):
     jobs = workflow_jobs(config, "test-deploy")
     expected = set(required) | {"orb-tools/pack", "orb-tools/publish"}
     if not expanded:
-        expected.remove("compatibility-matrix")
-        expected.add("compatibility-<< matrix.yamllint-version >>-py<< matrix.python-version >>")
+        for _, alias, prefix, _ in MATRICES:
+            expected.remove(alias)
+            expected.add(prefix + NAME)
     require(set(jobs) == expected, "Unexpected release workflow jobs")
     require_dependencies(jobs["orb-tools/pack"], required)
     require_dependencies(jobs["orb-tools/publish"], ["orb-tools/pack"])
@@ -172,10 +198,11 @@ def verify_setup(source, expanded):
             "Expanded continuation input mismatch")
 
 
-def verify_runtime_steps(context, job, version, python):
-    """Every matrix pair must execute the complete ordered boolean observation."""
-    source = context["source"]["jobs"]["compatibility-tests"]
-    require(digest(source) == context["manifest"]["boolean_runtime_job_sha256"],
+def verify_runtime_steps(context, job, version, python, name="compatibility-tests",
+                         pin="boolean_runtime_job_sha256"):
+    """Every matrix pair must execute the complete ordered observation of its source job."""
+    source = context["source"]["jobs"][name]
+    require(digest(source) == context["manifest"][pin],
             "Required runtime cases, typed parameters or observer steps changed")
     parameters = {"yamllint-version": version, "python-version": python}
     # Official expansion represents job environment as a list of singleton maps.
@@ -210,9 +237,42 @@ def verify_runtime_steps(context, job, version, python):
             require(not run.get("environment"), "Observer must not normalize parameter values")
 
 
+def matrix_suites():
+    """SUITES of run-compatibility.py, which every fixed-matrix compatibility job runs."""
+    spec = importlib.util.spec_from_file_location("run_compatibility", ROOT / ".circleci/run-compatibility.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return [tuple(item) for item in module.SUITES]
+
+
+def verify_pins(manifest):
+    pins = manifest["feature_suite_sha256"]
+    missing = [name for name in PINNED if name not in pins]
+    require(not missing, "Feature-owned verification is not pinned: " + ", ".join(missing))
+    for name, sha in pins.items():
+        require(hashlib.sha256((ROOT / ".circleci" / name).read_bytes()).hexdigest() == sha,
+                "Feature-owned verification changed without updating its evidence: " + name)
+
+
+def verify_output_job(job):
+    """The output_file job must keep its observer around every typed execute call."""
+    names = [step["run"].get("name") for step in job["steps"]
+             if isinstance(step, dict) and isinstance(step.get("run"), dict)]
+    executes = calls(job, "yamllint/execute")
+    require(names.count(OUTPUT_PREPARE) == 1 and names.count(OUTPUT_FINISH) == 1
+            and names[-1] == OUTPUT_FINISH and names.index(OUTPUT_PREPARE) < names.index(OUTPUT_FINISH),
+            "output_file step observer bypassed")
+    require(len([n for n in names if n.startswith("Observe ")]) == len(executes),
+            "Every observed execute call needs its Observe step")
+    require(any(values.get("output_file") for values in executes)
+            and any(not values.get("output_file") for values in executes),
+            "Both saving-enabled and saving-disabled real steps are required")
+
+
 def read_context(directory):
     directory = Path(directory)
     return dict(
+        suites=matrix_suites(),
         source=load(ROOT / ".circleci/test-deploy.yml"), setup=load(ROOT / ".circleci/config.yml"),
         command=load(ROOT / "src/commands/execute.yml"),
         install=load(ROOT / "src/commands/install.yml"),
@@ -263,28 +323,35 @@ def verify(context):
         require(c["expanded"]["jobs"][name]["docker"][0]["image"] == image, "Legacy image changed")
     require(c["expanded"]["jobs"]["resource-class-test"]["resource_class"] == "medium",
             "Custom resource class not propagated")
+    require(c["suites"] == MATRIX_SUITES, "Fixed-matrix behavior suites changed")
+    verify_pins(manifest)
+    verify_output_job(source["jobs"]["output-file-tests"])
     workflow = workflow_jobs(source, "test-deploy")
-    matrix = workflow["compatibility-<< matrix.yamllint-version >>-py<< matrix.python-version >>"]["matrix"]
-    require(matrix == {"alias": "compatibility-matrix", "parameters": {
-        "yamllint-version": manifest["versions"], "python-version": manifest["python_versions"]}}, "Fixed matrix changed")
     required = []
-    for version in manifest["versions"]:
-        for python in manifest["python_versions"]:
-            name = f"compatibility-{version}-py{python}"
-            required.append(name)
-            job = c["expanded"]["jobs"][name]
-            require(job["docker"][0]["image"] == f"cimg/python:{python}", "Fixed image mismatch")
-            require(job["resource_class"] == "small", "Default executor resource class changed")
-            verify_expanded_job(source["jobs"]["compatibility-tests"], job, command,
-                                c["execute_script"], c["install_script"],
-                                {"yamllint-version": version, "python-version": python})
-            verify_runtime_steps(c, job, version, python)
-            checks = runs(job, "Run fixed-version feature, refusal and combination checks")
-            expected = (f"python .circleci/run-compatibility.py --version {version} "
-                        f"--python-version {python} --evidence-dir /tmp/yamllint-compatibility")
-            require(len(checks) == 1 and " ".join(checks[0]["command"].split()) == expected,
-                    "Fixed behavior/refusal verification bypassed")
-    verify_release(source, [*legacy, "compatibility-matrix"])
+    for source_name, alias, prefix, pin in MATRICES:
+        matrix = workflow[prefix + NAME]["matrix"]
+        require(matrix == {"alias": alias, "parameters": {
+            "yamllint-version": manifest["versions"], "python-version": manifest["python_versions"]}},
+            "Fixed matrix changed")
+        for version in manifest["versions"]:
+            for python in manifest["python_versions"]:
+                name = f"{prefix}-{version}-py{python}"
+                required.append(name)
+                job = c["expanded"]["jobs"][name]
+                require(job["docker"][0]["image"] == f"cimg/python:{python}", "Fixed image mismatch")
+                require(job["resource_class"] == "small", "Default executor resource class changed")
+                verify_expanded_job(source["jobs"][source_name], job, command,
+                                    c["execute_script"], c["install_script"],
+                                    {"yamllint-version": version, "python-version": python})
+                verify_runtime_steps(c, job, version, python, source_name, pin)
+                if source_name != "compatibility-tests":
+                    continue
+                checks = runs(job, "Run fixed-version feature, refusal and combination checks")
+                expected = (f"python .circleci/run-compatibility.py --version {version} "
+                            f"--python-version {python} --evidence-dir /tmp/yamllint-compatibility")
+                require(len(checks) == 1 and " ".join(checks[0]["command"].split()) == expected,
+                        "Fixed behavior/refusal verification bypassed")
+    verify_release(source, [*legacy, *(alias for _, alias, _, _ in MATRICES)])
     verify_release(c["expanded"], [*legacy, *required], expanded=True)
     probe = c["probe"]["jobs"]["parameter-probe"]
     require(calls(probe, "yamllint/execute") == PROBES, "Parameter probe coverage changed")
@@ -331,13 +398,11 @@ def main():
         prepare(args.evidence_dir)
         return
     context = read_context(args.evidence_dir)
-    required = verify(context)
+    required = verify(context)  # includes the feature-owned file pins
     manifest = context["manifest"]
-    for name, sha in manifest["feature_suite_sha256"].items():
-        require(hashlib.sha256((ROOT / ".circleci" / name).read_bytes()).hexdigest() == sha,
-                "Feature-owned verification changed without updating its evidence: " + name)
     record = dict(identity=identity(), result="configuration checks passed; behavior results are separate",
                   matrix_jobs=required, legacy_jobs=list(manifest["legacy_job_sha256"]),
+                  matrix_suites=context["suites"], parameter_probes=PROBES,
                   inherited_verification=manifest, parameters=PARAMETERS,
                   files={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                          for p in args.evidence_dir.glob("*.yml")})

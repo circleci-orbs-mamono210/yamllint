@@ -13,9 +13,13 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# #5510: the output_file child-process suites (#5508/#5509) and the step-observer
+# fault controls run in every fixed pair; none is limited to one environment.
 SUITES = [("test-config-data.py", 15), ("test-no-warnings.py", 9),
           ("test-list-files.py", 17), ("test-combinations.py", 3),
-          ("test-boolean-runtime.py", 5)]
+          ("test-boolean-runtime.py", 5), ("test-output-file.py", 20),
+          ("test-output-destination.py", 13), ("test-output-phase1.py", 8),
+          ("test-output-runtime.py", 23)]
 
 
 def main():
@@ -80,6 +84,8 @@ def main():
     record["all_suites_passed"] = True
     record["inline_default_execute"] = "separate following CircleCI step; use job status as its result"
     record["actual_boolean_commands"] = "separate following CircleCI steps; see boolean-runtime/results.json and job status"
+    record["actual_output_file_commands"] = ("separate output-file-<version>-py<python> job; "
+                                             "see output-file-runtime/results.json and job status")
     output.write_text(json.dumps(record, indent=2) + "\n")
 
 
