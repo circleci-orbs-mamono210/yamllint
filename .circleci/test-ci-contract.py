@@ -409,6 +409,19 @@ class ConfigContract(unittest.TestCase):
         del self.c["manifest"]["feature_suite_sha256"]["consumer/config.template.yml"]
         self.rejected_by("Feature-owned verification is not pinned: consumer/config.template.yml")
 
+    # #5513: the full-content comparison of the release Orbs is pinned and tested in every pair.
+    def test_release_suite_removed(self):
+        self.c["release_suites"].clear()
+        self.rejected_by("Release comparison suites changed")
+
+    def test_release_suite_count_changed(self):
+        self.c["release_suites"][0] = ("test-compare-orbs.py", 10)
+        self.rejected_by("Release comparison suites changed")
+
+    def test_release_tool_pin_removed(self):
+        del self.c["manifest"]["feature_suite_sha256"]["compare-orbs.py"]
+        self.rejected_by("Feature-owned verification is not pinned: compare-orbs.py")
+
 
 if __name__ == "__main__":
     unittest.main()

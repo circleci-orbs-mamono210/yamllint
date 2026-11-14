@@ -4,12 +4,11 @@
 
 CircleCI Orb for running yamllint.
 
-This documentation targets **orbss/yamllint@2.2.0** and is prepared before
-that release. Until 2.2.0 is published, the Orb Registry does not provide it,
-and the published 2.1.1 does not have `output_file`. Development verification
-uses the packed source Orb injected inline. Publication (#5513) and
-independent consumer verification (#5514) are tracked separately; a source
-test result alone does not establish either outcome.
+This documentation targets **orbss/yamllint@2.2.0**. Releases up to 2.1.1 do
+not have `output_file`. Development verification uses the packed source Orb
+injected inline. Registry availability (#5513) and independent consumer
+verification (#5514) are tracked separately; a source test result alone does
+not establish either outcome.
 
 ## Usage
 
@@ -730,20 +729,17 @@ published Orb to the verified packed Orb.
 
 ## Release documentation
 
-The [CHANGELOG](CHANGELOG.md) separates `2.1.1` from subsequent Unreleased
-changes. Its comparisons are `v2.1.0...v2.1.1` for `2.1.1` and
-`v2.1.1...HEAD` for `Unreleased`. The release candidate must include the
-final date and documentation before validation. Publication, artifact
-equality and independent consumer results remain separate release evidence
-in #5504; a version heading is not proof of publication. Follow the
-[v2.1.1 release procedure](.circleci/RELEASE_V2_1_1.md). The v2.1.0 publication
-and failed consumer result remain recorded separately under #5493.
-
-Changes prepared for `2.2.0` stay under `Unreleased` until #5513 fixes the
-release candidate. The `2.2.0` heading, its date and the comparison links
-(`v2.1.1...v2.2.0` and `v2.2.0...HEAD`) are finalized there. Until then the
-`@2.2.0` references in this README and in the examples are preparation, not
-a claim that the release exists.
+The [CHANGELOG](CHANGELOG.md) separates `2.2.0` from subsequent Unreleased
+changes. Its comparisons are `v2.1.1...v2.2.0` for `2.2.0` and
+`v2.2.0...HEAD` for `Unreleased`. The release candidate must include the
+final date and documentation before validation. Publication and the
+full-content comparison of the published Orb (#5513), and independent
+consumer results (#5514), remain separate release evidence; a version heading
+is not proof of publication. Follow the
+[v2.2.0 release procedure](.circleci/RELEASE_V2_2_0.md). Earlier releases keep
+their own records: v2.1.1 under #5504
+([procedure](.circleci/RELEASE_V2_1_1.md)), and the v2.1.0 publication and
+its failed consumer result under #5493.
 
 orb-tools v12.5.0 **RC011 checks only the bundled examples' Orb major against
 the release tag major**. It does not check this README or full `2.2.0`

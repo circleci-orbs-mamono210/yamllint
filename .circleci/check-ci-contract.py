@@ -55,8 +55,10 @@ MATRIX_SUITES = [
     ("test-output-destination.py", 13), ("test-output-phase1.py", 8), ("test-output-runtime.py", 23),
 ]
 CONSUMER_SUITES = [("test-consumer-template.py", 18)]  # Python 3.14 pairs (run-compatibility.py)
+RELEASE_SUITES = [("test-compare-orbs.py", 11)]  # every pair (run-compatibility.py)
 PINNED = ("prepare-consumer.py", "verify-consumer-d08.py", "test-consumer-template.py",
           "consumer/config.template.yml", "consumer/d08-record.template.json",
+          "compare-orbs.py", "test-compare-orbs.py",
           "test-target-boundaries.py", "test-config-data.py", "test-no-warnings.py", "test-list-files.py",
           "test-boolean-runtime.py", "verify-boolean-parameters.py", "test-output-file.py",
           "test-output-destination.py", "test-output-phase1.py", "test-output-runtime.py",
@@ -296,6 +298,7 @@ def read_context(directory):
     directory = Path(directory)
     return dict(
         suites=matrix_suites(), consumer_suites=matrix_suites("CONSUMER_SUITES"),
+        release_suites=matrix_suites("RELEASE_SUITES"),
         consumer_text=(directory / "consumer-config.yml").read_text(encoding="utf-8"),
         consumer=load(directory / "consumer-config.yml"), consumer_inline=load(directory / "consumer-inline.yml"),
         consumer_expanded=load(directory / "consumer-expanded.yml"),
@@ -351,6 +354,7 @@ def verify(context):
             "Custom resource class not propagated")
     require(c["suites"] == MATRIX_SUITES, "Fixed-matrix behavior suites changed")
     require(c["consumer_suites"] == CONSUMER_SUITES, "Consumer template suites changed")
+    require(c["release_suites"] == RELEASE_SUITES, "Release comparison suites changed")
     verify_pins(manifest)
     verify_output_job(source["jobs"]["output-file-tests"])
     workflow = workflow_jobs(source, "test-deploy")
@@ -438,6 +442,7 @@ def main():
     record = dict(identity=identity(), result="configuration checks passed; behavior results are separate",
                   matrix_jobs=required, legacy_jobs=list(manifest["legacy_job_sha256"]),
                   matrix_suites=context["suites"], consumer_suites=context["consumer_suites"],
+                  release_suites=context["release_suites"],
                   consumer_template="structure checked with the packed Orb inline; not a published-Orb run",
                   parameter_probes=PROBES,
                   inherited_verification=manifest, parameters=PARAMETERS,

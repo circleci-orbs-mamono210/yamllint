@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Preparation for v2.2.0. The version heading, date and comparison links are
-finalized in #5513. These notes are not release evidence; publication and
-independent consumer verification are recorded separately.
+## [2.2.0] - 2026-11-14
+
+Release notes for v2.2.0 (#5513). Publication and independent consumer
+verification (#5514) are recorded separately; this heading is not release
+evidence.
 
 ### Added
 
@@ -47,9 +49,18 @@ independent consumer verification are recorded separately.
   jobs and the four compatibility jobs, before downstream pack and publish.
   Check non-default `output_file` delivery in source, packed Orb and
   expanded configuration.
-- Prepare README and every example for `orbss/yamllint@2.2.0`. Document
+- Target README and every example at `orbss/yamllint@2.2.0`. Document
   saving rules, exit statuses, artifact upload and the split between
-  pre-publication checks and planned published-consumer checks.
+  pre-publication checks and published-consumer checks.
+- Retarget the published-consumer observers to `verify/yamllint-v2.2.0` and
+  `orbss/yamllint@2.2.0`. Add the consumer configuration template, which may
+  change only in its release commit, its structure check with the packed Orb
+  inline, and the D08 judgment of the artifact after a failed real step,
+  with fault controls.
+- Add `.circleci/compare-orbs.py` to compare the release candidate's packed
+  Orb, the tag pipeline's packed Orb and the published Orb in full and to
+  write the result as the release record. Its fault controls run in all four
+  compatibility jobs.
 
 ## [2.1.1] - 2026-10-29
 
@@ -329,7 +340,8 @@ File-pattern differences between upstream 1.37.1 and 1.38.0 are preserved.
 - Fixed the `yamllint/defaut` executor typo in `src/examples/example.yml`
   to `yamllint/default`.
 
-[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/circleci-orbs-mamono210/yamllint/compare/v1.1.5...v2.0.0

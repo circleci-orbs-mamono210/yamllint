@@ -23,6 +23,9 @@ SUITES = [("test-config-data.py", 15), ("test-no-warnings.py", 9),
 # #5512: published-consumer template and D08 judgment controls. The consumer
 # jobs use cimg/python:3.14 only, so these run in both Python 3.14 pairs.
 CONSUMER_SUITES = [("test-consumer-template.py", 18)]
+# #5513: fault controls of the full-content comparison of the release Orbs.
+# The tool needs only Python and PyYAML, so the controls run in every pair.
+RELEASE_SUITES = [("test-compare-orbs.py", 11)]
 
 
 def main():
@@ -49,6 +52,7 @@ def main():
         suites.insert(0, ("test-target-boundaries.py", 14))
     if args.python_version == "3.14":
         suites.extend(CONSUMER_SUITES)
+    suites.extend(RELEASE_SUITES)
     manifest = json.loads((ROOT / ".circleci/compatibility-contract.json").read_text())
     for name, sha in manifest["feature_suite_sha256"].items():
         if hashlib.sha256((ROOT / ".circleci" / name).read_bytes()).hexdigest() != sha:

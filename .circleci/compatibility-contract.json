@@ -35,7 +35,9 @@
     "verify-consumer-d08.py": "de756561d80b063b72d74ea2f4fe8686b58938cbad854b0111809e66e6a5f8fd",
     "test-consumer-template.py": "074337e16c2b04746186afb0db49f56d6854a3bba99234997fdfc36df7b9f0ee",
     "consumer/config.template.yml": "4ed1ef82f02d935965a960a00470f7bd0444a4ad0e9be249543a0d225f637331",
-    "consumer/d08-record.template.json": "13feb3bcb39de39fdc2843d28b05bdc58797a18fb9ff96f351ece0c1699e129a"
+    "consumer/d08-record.template.json": "13feb3bcb39de39fdc2843d28b05bdc58797a18fb9ff96f351ece0c1699e129a",
+    "compare-orbs.py": "01dbe24def7facb07825ba5e444d1fd6bb15b86a27a4e2c22d9c7fdd2e890c48",
+    "test-compare-orbs.py": "eb586b1620f5234283b8c578bd9984208c9b1d78535c8a4441b7700e1d7ddbfc"
   },
   "versions": [
     "1.37.1",
@@ -52,5 +54,7 @@
   "output_file_integration_base_commit": "8fc9dcc3a410ef77e08bde65178d9f0cd2d651b5",
   "output_file_integration_ticket": 5510,
   "consumer_template_ticket": 5512,
-  "consumer_template_base_commit": "c608793e6cb9396a19e909d7bed6b4c2b42c1d61"
+  "consumer_template_base_commit": "c608793e6cb9396a19e909d7bed6b4c2b42c1d61",
+  "release_comparison_ticket": 5513,
+  "release_comparison_base_commit": "6f462af8e022fa0dd6bd37a06a809db53454de5c"
 }

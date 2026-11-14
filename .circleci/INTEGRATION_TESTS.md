@@ -165,6 +165,25 @@ published Orb. Version heading, date and comparison links are finalized by
 needs its own `orb-tools/lint`, `orb-tools/review` and `orb-tools/pack`
 results.
 
+## v2.2.0 release candidate and published Orb comparison (#5513)
+
+#5513 finalizes the CHANGELOG heading `2.2.0`, its date and the comparison
+links, and the README release notes, in the release candidate. The procedure
+is [RELEASE_V2_2_0.md](RELEASE_V2_2_0.md).
+
+`.circleci/compare-orbs.py` compares, in full, the packed Orb that the
+release candidate's CI verified, the packed Orb that the tag pipeline
+generated and the published Orb, and writes the result as the release
+record. Its fault controls, `test-compare-orbs.py` (11 methods), run in all
+four compatibility jobs: reformatted copies match; changed scripts, examples,
+parameters, whitespace and line endings do not; ambiguous YAML is not
+compared; and the record fails without the pinned tool, a clean checkout of
+the release candidate, the tag on that commit or a CHANGELOG date equal to
+the publication day in JST. Both files are pinned in
+`compatibility-contract.json`, so the release candidate fixes the tool's
+version. The comparison result itself is recorded under #5513 after
+publication; it is not a result of this source CI.
+
 ## v2.1.1 boolean runtime regression (#5504)
 
 The historical evidence below is retained for its recorded revision. It does
