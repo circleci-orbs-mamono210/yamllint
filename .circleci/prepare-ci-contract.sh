@@ -36,6 +36,10 @@ python .circleci/check-ci-contract.py prepare --evidence-dir "${evidence_dir}"
     > "${evidence_dir}/parameter-probes-expanded.yml"
 "${PHASE5_CIRCLECI_CLI}" config process .circleci/config.yml \
     > "${evidence_dir}/setup-expanded.yml"
+# Published-consumer template (#5512): structure check only, with the packed
+# Orb inline in place of the registry reference. Never continued or run.
+"${PHASE5_CIRCLECI_CLI}" config process "${evidence_dir}/consumer-inline.yml" \
+    > "${evidence_dir}/consumer-expanded.yml"
 
 python .circleci/check-ci-contract.py verify --evidence-dir "${evidence_dir}"
 PHASE5_EVIDENCE_DIR="${evidence_dir}" python .circleci/test-ci-contract.py -v \

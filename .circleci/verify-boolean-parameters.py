@@ -15,6 +15,9 @@ import sys
 ROOT = Path.cwd()
 EVIDENCE = ROOT / '.boolean-evidence'
 STATE = EVIDENCE / 'state.json'
+# Published-consumer identity for v2.2.0 (#5512); see consumer/config.template.yml.
+CONSUMER_BRANCH = 'verify/yamllint-v2.2.0'
+CONSUMER_ORB = 'orbss/yamllint@2.2.0'
 DATA = 'extends: default\nrules:\n  line-length: disable\n'
 WARN_DATA = 'extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n'
 LIST_DATA = 'extends: relaxed\nyaml-files: ["*.yml"]\nignore: ["consumer-fixtures/listing/skip.yml"]\n'
@@ -57,13 +60,13 @@ def identity(local=False):
         require(not dirty, 'Tracked checkout is dirty')
         require(platform.python_version().startswith(image.split(':')[1] + '.'), 'Wrong actual Python')
         if scope == 'consumer':
-            require(os.environ.get('CIRCLE_BRANCH') == 'verify/yamllint-v2.1.1', 'Use the dedicated consumer branch')
+            require(os.environ.get('CIRCLE_BRANCH') == CONSUMER_BRANCH, 'Use the dedicated consumer branch')
     packages = {}
     for name in ('yamllint', 'pathspec', 'PyYAML'):
         packages[name] = importlib.metadata.version(name)
     return dict(kind='local-supplementary' if local else 'CircleCI', release_commit=release,
                 checkout_commit=commit, tracked_dirty=dirty, scope=scope,
-                configured_orb='orbss/yamllint@2.1.1' if scope == 'consumer' else 'packed source inline',
+                configured_orb=CONSUMER_ORB if scope == 'consumer' else 'packed source inline',
                 configured_image=image, configured_image_executed=not local,
                 python=platform.python_version(), packages=packages,
                 ci={k: os.environ.get(k, '') for k in ('CIRCLE_SHA1', 'CIRCLE_BUILD_URL', 'CIRCLE_BUILD_NUM', 'CIRCLE_WORKFLOW_ID',

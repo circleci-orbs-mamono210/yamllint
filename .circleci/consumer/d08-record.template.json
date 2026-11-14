@@ -1,0 +1,47 @@
+{
+  "_how_to_use": [
+    "Copy this file, fill it from the CircleCI UI of the D08 job, then run:",
+    "python .circleci/verify-consumer-d08.py judge --record <copy> --artifact <downloaded lint.txt> --check-evidence <downloaded d08-check.json>",
+    "steps: the steps the UI is expected to show for the job, in order. Set each status to success or failed as the UI shows it. If the UI shows a different list, record the list as the UI shows it; the judgment then fails.",
+    "execute_step.failure_reason: copy the whole output the UI shows for the failed Execute yamllint step, without CircleCI's closing line that reports the exit code. Write that exit code as a number in exit_code.",
+    "Write the value unconfirmed where the UI does not show something. Do not guess from the red job status.",
+    "Record no credential, request header, API response or step output URL."
+  ],
+  "job_name": "d08-failed-lint-artifact",
+  "job_url": "unconfirmed",
+  "consumer_commit": "unconfirmed",
+  "release_commit": "unconfirmed",
+  "confirmed_by": "unconfirmed",
+  "confirmed_at": "unconfirmed",
+  "method": "CircleCI UI",
+  "job_status": "unconfirmed",
+  "execute_step": {
+    "name": "Execute yamllint",
+    "preceded_by": "Show yamllint version",
+    "identified_by": "unconfirmed",
+    "status": "unconfirmed",
+    "exit_code": "unconfirmed",
+    "failure_reason": "unconfirmed"
+  },
+  "steps": [
+    {"name": "Spin up environment", "status": "unconfirmed"},
+    {"name": "Preparing environment variables", "status": "unconfirmed"},
+    {"name": "Checkout code", "status": "unconfirmed"},
+    {"name": "Install yamllint", "status": "unconfirmed"},
+    {"name": "Verify consumer checkout", "status": "unconfirmed"},
+    {"name": "Prepare D08 fixture and result directory", "status": "unconfirmed"},
+    {"name": "Show yamllint version", "status": "unconfirmed"},
+    {"name": "Execute yamllint", "status": "unconfirmed"},
+    {"name": "Check D08 result file", "status": "unconfirmed"},
+    {"name": "Uploading artifacts", "status": "unconfirmed"},
+    {"name": "Uploading artifacts", "status": "unconfirmed"}
+  ],
+  "in_job_check": {
+    "step": "Check D08 result file",
+    "status": "unconfirmed"
+  },
+  "artifact": {
+    "path": "yamllint-d08-results/lint.txt",
+    "retrieved_how": "unconfirmed"
+  }
+}

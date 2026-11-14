@@ -20,6 +20,9 @@ SUITES = [("test-config-data.py", 15), ("test-no-warnings.py", 9),
           ("test-boolean-runtime.py", 5), ("test-output-file.py", 20),
           ("test-output-destination.py", 13), ("test-output-phase1.py", 8),
           ("test-output-runtime.py", 23)]
+# #5512: published-consumer template and D08 judgment controls. The consumer
+# jobs use cimg/python:3.14 only, so these run in both Python 3.14 pairs.
+CONSUMER_SUITES = [("test-consumer-template.py", 18)]
 
 
 def main():
@@ -44,6 +47,8 @@ def main():
     # Argument-only and unchanged Phase 1 shim checks are version/environment independent.
     if args.version == "1.38.0" and args.python_version == "3.14":
         suites.insert(0, ("test-target-boundaries.py", 14))
+    if args.python_version == "3.14":
+        suites.extend(CONSUMER_SUITES)
     manifest = json.loads((ROOT / ".circleci/compatibility-contract.json").read_text())
     for name, sha in manifest["feature_suite_sha256"].items():
         if hashlib.sha256((ROOT / ".circleci" / name).read_bytes()).hexdigest() != sha:

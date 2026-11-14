@@ -42,7 +42,12 @@ EVIDENCE = ROOT / '.output-evidence'
 STATE = EVIDENCE / 'state.json'
 CONFIG_ABSOLUTE = '/tmp/yamllint-output-results'  # literal parent in test-deploy.yml
 ABSOLUTE = Path(CONFIG_ABSOLUTE)
-JOB = 'output-file-tests'
+# Where the typed yamllint/execute calls are configured, per verification scope.
+JOBS = {'source': ('.circleci/test-deploy.yml', 'output-file-tests'),
+        'consumer': ('.circleci/config.yml', 'output-file-acceptance')}
+# Published-consumer identity for v2.2.0 (#5512); see consumer/config.template.yml.
+CONSUMER_BRANCH = 'verify/yamllint-v2.2.0'
+CONSUMER_ORB = 'orbss/yamllint@2.2.0'
 TEMPORARY_PREFIX = '.yamllint-orb-output-'
 PARAMETERS = {
     'targets': 'PARAM_TARGETS', 'config_file': 'PARAM_CONFIG_FILE',
@@ -102,7 +107,8 @@ CASES = {
         dict(targets='\n'.join(LONG_TARGETS), config_data=WARN, format='parsable', output_file=LITERAL),
         ['--config-data', WARN, '--format', 'parsable', '--', *LONG_TARGETS], 'long'),
 }
-SCOPE = ('Success path of real yamllint/execute steps with typed output_file in this job. '
+SCOPE = ('Success path of real yamllint/execute steps with typed output_file in this job '
+         '(packed source Orb, or the registry Orb in the consumer scope). '
          'Saved bytes are compared with a separate reference run of the same yamllint whose '
          'stdout is a pipe. The bytes delivered to the CircleCI log, streaming and the '
          "Orb's non-zero paths are not observed here.")
@@ -223,21 +229,33 @@ def invoke(evidence, argv):
 
 # --- preparation and case sequence ----------------------------------------
 
+def scope(local=False):
+    value = os.environ.get('VERIFICATION_SCOPE') or ('source' if local else '')
+    require(value in JOBS, 'Set VERIFICATION_SCOPE to source or consumer')
+    return value
+
+
 def identity(local):
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip()
     dirty = subprocess.run(['git', 'diff', '--quiet', 'HEAD'], cwd=REPO, check=False).returncode != 0
     image = os.environ.get('VERIFICATION_IMAGE', '')
     require(image in ('cimg/python:3.13', 'cimg/python:3.14'), 'Expected a matrix image')
+    kind = scope(local)
+    release = os.environ.get('RELEASE_COMMIT', '') if kind == 'consumer' else commit
+    require(re.fullmatch(r'[0-9a-f]{40}', release), 'Set RELEASE_COMMIT to the verified release/tag commit')
+    subprocess.run(['git', 'merge-base', '--is-ancestor', release, 'HEAD'], cwd=REPO, check=True)
     if not local:
-        require(os.environ.get('VERIFICATION_SCOPE') == 'source', 'Expected VERIFICATION_SCOPE=source')
         require(os.environ.get('CIRCLECI') == 'true', 'CI evidence requires CircleCI')
         require(os.environ.get('CIRCLE_SHA1') == commit, 'Checkout does not match CI revision')
         require(not dirty, 'Tracked checkout is dirty')
         require(platform.python_version().startswith(image.split(':')[1] + '.'), 'Wrong actual Python')
         require(ROOT.resolve() == REPO, 'Run from the checkout')
+        if kind == 'consumer':
+            require(os.environ.get('CIRCLE_BRANCH') == CONSUMER_BRANCH, 'Use the dedicated consumer branch')
     packages = {name: importlib.metadata.version(name) for name in ('yamllint', 'pathspec', 'PyYAML')}
     return dict(kind='local-supplementary' if local else 'CircleCI', checkout_commit=commit,
-                tracked_dirty=dirty, scope='source', configured_orb='packed source inline',
+                release_commit=release, tracked_dirty=dirty, scope=kind,
+                configured_orb=CONSUMER_ORB if kind == 'consumer' else 'packed source inline',
                 configured_image=image, configured_image_executed=not local,
                 python=platform.python_version(), packages=packages,
                 ci={k: os.environ.get(k, '') for k in ('CIRCLE_SHA1', 'CIRCLE_BUILD_URL', 'CIRCLE_BUILD_NUM',
@@ -245,10 +263,11 @@ def identity(local):
                                                        'CIRCLE_BRANCH', 'CIRCLE_TAG')})
 
 
-def configured_cases():
-    """The typed yamllint/execute calls of the source job, keyed by their Observe step."""
+def configured_cases(kind='source'):
+    """The typed yamllint/execute calls of the scope's job, keyed by their Observe step."""
     import yaml
-    steps = yaml.safe_load((REPO / '.circleci/test-deploy.yml').read_text(encoding='utf-8'))['jobs'][JOB]['steps']
+    path, job = JOBS[kind]
+    steps = yaml.safe_load((REPO / path).read_text(encoding='utf-8'))['jobs'][job]['steps']
     calls, pending = {}, None
     for step in steps:
         if isinstance(step, dict) and isinstance(step.get('run'), dict):
@@ -296,7 +315,7 @@ def prepare(local, selection=None):
     selected = list(CASES) if selection is None else list(selection)
     require(selected and all(case in CASES for case in selected)
             and selected == [case for case in CASES if case in selected], 'Unknown or reordered case selection')
-    configured = configured_cases()
+    configured = configured_cases(metadata.get('scope', 'source'))
     require(list(configured) == list(CASES), 'Configured cases differ from the observer')
     for case, values in configured.items():
         require(values == typed(case, CONFIG_ABSOLUTE), f'{case}: configured typed parameters differ')

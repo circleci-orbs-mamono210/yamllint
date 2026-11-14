@@ -304,6 +304,111 @@ class ConfigContract(unittest.TestCase):
         del self.c["manifest"]["feature_suite_sha256"]["test-output-phase1.py"]
         self.rejected_by("Feature-owned verification is not pinned: test-output-phase1.py")
 
+    # #5512: published-consumer template, compiled with the packed Orb inline.
+    D08 = "d08-failed-lint-artifact"
+
+    def consumer_change(self, change):
+        """Change the generated configuration and its compiled input alike."""
+        for key in ("consumer", "consumer_inline"):
+            change(self.c[key])
+
+    consumer_rejected = rejected_by
+
+    def d08_run(self, name):
+        return contract.runs(self.c["consumer_expanded"]["jobs"][self.D08], name)
+
+    def test_consumer_configuration_edited_after_generation(self):
+        self.c["consumer_text"] += "# edited\n"
+        self.rejected_by("Consumer configuration is not the template")
+
+    def test_consumer_orb_reference_changed(self):
+        self.consumer_change(lambda config: config["orbs"].update(extra="circleci/orb-tools@12.5.0"))
+        self.consumer_rejected("reference only the published")
+
+    def test_consumer_context_added(self):
+        self.consumer_change(lambda config: config["workflows"]["consumer-acceptance"]["jobs"].append(
+            {"minimal": {"name": "again", "context": "CIRCLECI_ORBS"}}))
+        self.consumer_rejected("Forbidden mechanism")
+
+    def test_consumer_d08_in_required_workflow(self):
+        self.consumer_change(lambda config: config["workflows"]["consumer-acceptance"]["jobs"].append(self.D08))
+        self.consumer_rejected("Consumer workflows changed")
+
+    def test_consumer_compiled_input_differs(self):
+        self.c["consumer_inline"]["jobs"]["minimal"]["steps"].append("yamllint/execute")
+        self.rejected_by("Compiled consumer input is not the template plus the packed Orb")
+
+    def test_consumer_compiled_with_another_orb(self):
+        self.c["consumer_inline"]["orbs"]["yamllint"] = {"commands": {}}
+        self.rejected_by("Compiled consumer input is not the template plus the packed Orb")
+
+    def test_consumer_expanded_job_missing(self):
+        del self.c["consumer_expanded"]["jobs"]["output-file-acceptance-1.37.1"]
+        self.rejected_by("Expanded consumer job set changed")
+
+    def test_consumer_expanded_image_changed(self):
+        self.c["consumer_expanded"]["jobs"]["boolean-acceptance-1.38.0"]["docker"][0]["image"] = "cimg/python:3.13"
+        self.rejected_by("consumer image changed")
+
+    def test_consumer_expanded_version_changed(self):
+        job = self.c["consumer_expanded"]["jobs"]["output-file-acceptance-1.37.1"]
+        contract.runs(job, "Install yamllint")[0]["environment"]["PARAM_VERSION"] = "1.38.0"
+        self.rejected_by("installed yamllint version changed")
+
+    def test_consumer_expanded_output_value_rewritten(self):
+        job = self.c["consumer_expanded"]["jobs"]["output-file-acceptance-1.38.0"]
+        contract.runs(job, "Execute yamllint")[2]["environment"]["PARAM_OUTPUT_FILE"] = "lint.txt"
+        self.rejected_by("typed parameters were not delivered unchanged")
+
+    def test_d08_body_step_not_unique(self):
+        job = self.c["consumer_expanded"]["jobs"][self.D08]
+        job["steps"].append({"run": copy.deepcopy(self.d08_run("Execute yamllint")[0])})
+        self.rejected_by('unexpected number of "Execute yamllint" steps')
+
+    def test_d08_body_step_replaced(self):
+        self.d08_run("Execute yamllint")[0]["command"] = "yamllint . || true"
+        self.rejected_by("body step is not the Orb script")
+
+    def test_d08_parameters_changed(self):
+        self.d08_run("Execute yamllint")[0]["environment"]["PARAM_FORMAT"] = "standard"
+        self.rejected_by("typed parameters were not delivered unchanged")
+
+    def test_d08_body_can_be_skipped(self):
+        self.d08_run("Execute yamllint")[0]["when"] = "on_fail"
+        self.rejected_by("body step condition changed")
+
+    def test_d08_step_between_version_and_body(self):
+        job = self.c["consumer_expanded"]["jobs"][self.D08]
+        index = job["steps"].index({"run": self.d08_run("Execute yamllint")[0]})
+        job["steps"].insert(index, {"run": {"name": "Wrap yamllint", "command": "true"}})
+        self.rejected_by('must be unique and directly follow "Show yamllint version"')
+
+    def test_d08_check_not_always(self):
+        del self.d08_run("Check D08 result file")[0]["when"]
+        self.rejected_by("result file check must always run")
+
+    def test_d08_artifact_upload_added(self):
+        self.c["consumer_expanded"]["jobs"][self.D08]["steps"].append(
+            {"store_artifacts": {"path": "/tmp", "destination": "extra"}})
+        self.rejected_by("the steps the UI will show differ from the step list the record must hold")
+
+    def test_d08_checkout_removed_after_expansion(self):
+        steps = self.c["consumer_expanded"]["jobs"][self.D08]["steps"]
+        steps[:] = [step for step in steps if step != "checkout" and not (isinstance(step, dict) and "checkout" in step)]
+        self.rejected_by("the steps the UI will show differ from the step list the record must hold")
+
+    def test_d08_step_without_a_known_ui_name(self):
+        self.c["consumer_expanded"]["jobs"][self.D08]["steps"].insert(1, {"restore_cache": {"key": "d08"}})
+        self.rejected_by('step "restore_cache" has no known name in the CircleCI UI')
+
+    def test_consumer_suite_removed(self):
+        self.c["consumer_suites"].clear()
+        self.rejected_by("Consumer template suites changed")
+
+    def test_consumer_pin_removed(self):
+        del self.c["manifest"]["feature_suite_sha256"]["consumer/config.template.yml"]
+        self.rejected_by("Feature-owned verification is not pinned: consumer/config.template.yml")
+
 
 if __name__ == "__main__":
     unittest.main()

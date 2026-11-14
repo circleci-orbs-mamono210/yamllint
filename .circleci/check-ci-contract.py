@@ -54,7 +54,10 @@ MATRIX_SUITES = [
     ("test-combinations.py", 3), ("test-boolean-runtime.py", 5), ("test-output-file.py", 20),
     ("test-output-destination.py", 13), ("test-output-phase1.py", 8), ("test-output-runtime.py", 23),
 ]
-PINNED = ("test-target-boundaries.py", "test-config-data.py", "test-no-warnings.py", "test-list-files.py",
+CONSUMER_SUITES = [("test-consumer-template.py", 18)]  # Python 3.14 pairs (run-compatibility.py)
+PINNED = ("prepare-consumer.py", "verify-consumer-d08.py", "test-consumer-template.py",
+          "consumer/config.template.yml", "consumer/d08-record.template.json",
+          "test-target-boundaries.py", "test-config-data.py", "test-no-warnings.py", "test-list-files.py",
           "test-boolean-runtime.py", "verify-boolean-parameters.py", "test-output-file.py",
           "test-output-destination.py", "test-output-phase1.py", "test-output-runtime.py",
           "verify-output-file.py")
@@ -237,12 +240,32 @@ def verify_runtime_steps(context, job, version, python, name="compatibility-test
             require(not run.get("environment"), "Observer must not normalize parameter values")
 
 
-def matrix_suites():
-    """SUITES of run-compatibility.py, which every fixed-matrix compatibility job runs."""
-    spec = importlib.util.spec_from_file_location("run_compatibility", ROOT / ".circleci/run-compatibility.py")
+def load_script(name):
+    spec = importlib.util.spec_from_file_location(name.replace("-", "_"), ROOT / ".circleci" / (name + ".py"))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return [tuple(item) for item in module.SUITES]
+    return module
+
+
+def matrix_suites(attribute="SUITES"):
+    """Suite lists of run-compatibility.py, which the fixed-matrix compatibility jobs run."""
+    return [tuple(item) for item in getattr(load_script("run-compatibility"), attribute)]
+
+
+def verify_consumer(context):
+    """#5512: the published-consumer template, generated for this revision as a provisional
+    release commit and compiled with the packed Orb in place of the registry reference.
+    This is a structure check only; it is not a run of the published Orb."""
+    consumer = load_script("prepare-consumer")
+    config = context["consumer"]
+    release = config["jobs"]["minimal"]["environment"]["RELEASE_COMMIT"]
+    consumer.check_config(config, context["source"], release)
+    require(context["consumer_text"] == consumer.generate(release),
+            "Consumer configuration is not the template with only the release commit replaced")
+    inline = copy.deepcopy(config)
+    inline["orbs"]["yamllint"] = context["packed"]
+    require(context["consumer_inline"] == inline, "Compiled consumer input is not the template plus the packed Orb")
+    consumer.check_expanded(context["consumer_expanded"], config, context["packed"])
 
 
 def verify_pins(manifest):
@@ -272,7 +295,10 @@ def verify_output_job(job):
 def read_context(directory):
     directory = Path(directory)
     return dict(
-        suites=matrix_suites(),
+        suites=matrix_suites(), consumer_suites=matrix_suites("CONSUMER_SUITES"),
+        consumer_text=(directory / "consumer-config.yml").read_text(encoding="utf-8"),
+        consumer=load(directory / "consumer-config.yml"), consumer_inline=load(directory / "consumer-inline.yml"),
+        consumer_expanded=load(directory / "consumer-expanded.yml"),
         source=load(ROOT / ".circleci/test-deploy.yml"), setup=load(ROOT / ".circleci/config.yml"),
         command=load(ROOT / "src/commands/execute.yml"),
         install=load(ROOT / "src/commands/install.yml"),
@@ -324,6 +350,7 @@ def verify(context):
     require(c["expanded"]["jobs"]["resource-class-test"]["resource_class"] == "medium",
             "Custom resource class not propagated")
     require(c["suites"] == MATRIX_SUITES, "Fixed-matrix behavior suites changed")
+    require(c["consumer_suites"] == CONSUMER_SUITES, "Consumer template suites changed")
     verify_pins(manifest)
     verify_output_job(source["jobs"]["output-file-tests"])
     workflow = workflow_jobs(source, "test-deploy")
@@ -358,6 +385,7 @@ def verify(context):
     verify_expanded_job(probe, c["probe_expanded"]["jobs"]["parameter-probe"], command,
                         c["execute_script"], c["install_script"])
     verify_setup(c["setup"], c["setup_expanded"])
+    verify_consumer(c)
     return required
 
 
@@ -386,7 +414,14 @@ def prepare(directory):
             *[{"yamllint/execute": values} for values in PROBES]]}},
         workflows={"compile-only": {"jobs": ["parameter-probe"]}})
     (directory / "parameter-probes.yml").write_text(yaml.safe_dump(probe, sort_keys=False))
-    (directory / "identity.json").write_text(json.dumps(identity(), indent=2) + "\n")
+    record = identity()
+    (directory / "identity.json").write_text(json.dumps(record, indent=2) + "\n")
+    # #5512: consumer template with this revision as a provisional release commit.
+    consumer = load_script("prepare-consumer")
+    text = consumer.generate(record["commit"])
+    (directory / "consumer-config.yml").write_text(text, encoding="utf-8")
+    (directory / "consumer-inline.yml").write_text(
+        consumer.inline(text, (directory / "orb.yml").read_text(encoding="utf-8")), encoding="utf-8")
 
 
 def main():
@@ -402,7 +437,9 @@ def main():
     manifest = context["manifest"]
     record = dict(identity=identity(), result="configuration checks passed; behavior results are separate",
                   matrix_jobs=required, legacy_jobs=list(manifest["legacy_job_sha256"]),
-                  matrix_suites=context["suites"], parameter_probes=PROBES,
+                  matrix_suites=context["suites"], consumer_suites=context["consumer_suites"],
+                  consumer_template="structure checked with the packed Orb inline; not a published-Orb run",
+                  parameter_probes=PROBES,
                   inherited_verification=manifest, parameters=PARAMETERS,
                   files={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                          for p in args.evidence_dir.glob("*.yml")})
