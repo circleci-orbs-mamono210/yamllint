@@ -1,71 +1,327 @@
+# Consumer verification of the published orbss/yamllint@2.2.0 (#5512, #5514).
+#
+# TEMPLATE. Do not edit a generated copy. Generate .circleci/config.yml with
+#   python .circleci/prepare-consumer.py generate --release-commit <sha>
+# The only change is the release commit placeholder. Commit the generated file
+# as the single change on branch verify/yamllint-v2.2.0, one commit after the
+# release commit, and never merge that branch to main.
+#
+# The registry Orb is used directly: no setup/continue, inline Orb, publish
+# job or Context. Checked-out .circleci scripts only observe and judge; no
+# checked-out src/ script is executed.
 version: 2.1
-setup: true
 
 orbs:
-  orb-tools: circleci/orb-tools@12.5.0
-  shellcheck: circleci/shellcheck@3.4.0
+  yamllint: orbss/yamllint@2.2.0
 
-executors:
-  config-verifier:
-    docker:
-      - image: cimg/python:3.14
-    resource_class: small
-    environment:
-      CIRCLE_TOKEN: dummy
-      CIRCLE_NO_TELEMETRY: "1"
-      CIRCLE_NO_UPDATE_CHECK: "1"
-  orb-pack:
-    docker:
-      - image: circleci/circleci-cli:1.11.0
-    resource_class: medium
-    environment:
-      CIRCLE_TOKEN: dummy
-      CIRCLE_NO_TELEMETRY: "1"
-      CIRCLE_NO_UPDATE_CHECK: "1"
+commands:
+  verify-consumer-checkout:
+    steps:
+      - run:
+          name: Verify consumer checkout
+          command: python .circleci/prepare-consumer.py verify-checkout
 
-filters: &filters
-  tags:
-    only: /.*/
+jobs:
+  # Success required: the minimal README workflow.
+  minimal:
+    environment:
+      VERIFICATION_SCOPE: consumer
+      VERIFICATION_IMAGE: cimg/python:3.14
+      RELEASE_COMMIT: 2fc343180c9e13660889ac5643b75fbcabd513ea
+    executor: yamllint/default
+    steps:
+      - checkout
+      - yamllint/install
+      - yamllint/execute
+      - verify-consumer-checkout
+      - run:
+          name: Record minimal workflow result
+          command: python .circleci/verify-boolean-parameters.py minimal-record
+      - store_artifacts:
+          path: .boolean-evidence
+          destination: minimal
+
+  # Success required: typed boolean delivery and upstream results, including
+  # strict warning, error and silent strict warning. The observer returns 0
+  # after its checks, so this is not evidence of an Orb non-zero exit.
+  boolean-acceptance:
+    environment:
+      VERIFICATION_SCOPE: consumer
+      VERIFICATION_IMAGE: cimg/python:3.14
+      RELEASE_COMMIT: 2fc343180c9e13660889ac5643b75fbcabd513ea
+      EXPECTED_YAMLLINT: << parameters.yamllint-version >>
+    parameters:
+      yamllint-version:
+        type: enum
+        enum: ["1.37.1", "1.38.0"]
+    executor:
+      name: yamllint/default
+      image: cimg/python:3.14
+    steps:
+      - checkout
+      - yamllint/install:
+          version: << parameters.yamllint-version >>
+      - verify-consumer-checkout
+      - run:
+          name: Prepare fixtures and real-upstream observer
+          command: python .circleci/verify-boolean-parameters.py prepare
+      - run:
+          name: Expect config-file
+          command: python .circleci/verify-boolean-parameters.py expect config-file
+      - yamllint/execute:
+          targets: consumer-fixtures/long.yml
+          config_file: consumer-fixtures/config.yml
+      - run:
+          name: Expect config-data
+          command: python .circleci/verify-boolean-parameters.py expect config-data
+      - yamllint/execute:
+          targets: consumer-fixtures/long.yml
+          config_data: "extends: default\nrules:\n  line-length: disable\n"
+      - run:
+          name: Expect visible-strict-warning
+          command: python .circleci/verify-boolean-parameters.py expect visible-strict-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          format: parsable
+      - run:
+          name: Expect hidden-warning
+          command: python .circleci/verify-boolean-parameters.py expect hidden-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: false
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect hidden-strict-warning
+          command: python .circleci/verify-boolean-parameters.py expect hidden-strict-warning
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect visible-error
+          command: python .circleci/verify-boolean-parameters.py expect visible-error
+      - yamllint/execute:
+          targets: consumer-fixtures/error.yml
+          config_data: 'extends: default'
+          strict: true
+          no_warnings: true
+          format: parsable
+      - run:
+          name: Expect list-files
+          command: python .circleci/verify-boolean-parameters.py expect list-files
+      - yamllint/execute:
+          targets: consumer-fixtures/listing
+          config_data: 'extends: relaxed
+
+            yaml-files: ["*.yml"]
+
+            ignore: ["consumer-fixtures/listing/skip.yml"]
+
+            '
+          list_files: true
+      - run:
+          name: Expect default-booleans
+          command: python .circleci/verify-boolean-parameters.py expect default-booleans
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+      - run:
+          name: Expect false-booleans
+          command: python .circleci/verify-boolean-parameters.py expect false-booleans
+      - yamllint/execute:
+          targets: consumer-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          strict: false
+          no_warnings: false
+          list_files: false
+      - run:
+          name: Expect literal-targets
+          command: python .circleci/verify-boolean-parameters.py expect literal-targets
+      - yamllint/execute:
+          targets: '-consumer.yml
+
+            ./-
+
+            consumer-fixtures/valid.yml'
+      - run:
+          name: Verify all body calls and results
+          command: python .circleci/verify-boolean-parameters.py finish
+      - store_artifacts:
+          path: .boolean-evidence
+          destination: boolean-runtime
+
+  # Success required: real output_file steps, observed without an added pipe
+  # or PTY (the #5510 method). Every body must exit 0.
+  output-file-acceptance:
+    environment:
+      VERIFICATION_SCOPE: consumer
+      VERIFICATION_IMAGE: cimg/python:3.14
+      RELEASE_COMMIT: 2fc343180c9e13660889ac5643b75fbcabd513ea
+      EXPECTED_YAMLLINT: << parameters.yamllint-version >>
+    parameters:
+      yamllint-version:
+        type: enum
+        enum: ["1.37.1", "1.38.0"]
+    executor:
+      name: yamllint/default
+      image: cimg/python:3.14
+    steps:
+      - checkout
+      - yamllint/install:
+          version: << parameters.yamllint-version >>
+      - verify-consumer-checkout
+      - run:
+          name: Prepare output_file fixtures and step observer
+          command: python .circleci/verify-output-file.py prepare
+      - run:
+          name: Observe saving-omitted
+          command: python .circleci/verify-output-file.py expect saving-omitted
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+      - run:
+          name: Observe saving-empty
+          command: python .circleci/verify-output-file.py expect saving-empty
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: ""
+      - run:
+          name: Observe absolute-parsable
+          command: python .circleci/verify-output-file.py expect absolute-parsable
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: /tmp/yamllint-output-results/absolute-parsable.txt
+      - run:
+          name: Observe relative-strict-clean
+          command: python .circleci/verify-output-file.py expect relative-strict-clean
+      - yamllint/execute:
+          targets: output-fixtures/clean.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          strict: true
+          format: parsable
+          output_file: output-results/strict-clean.txt
+      - run:
+          name: Observe hidden-warning
+          command: python .circleci/verify-output-file.py expect hidden-warning
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          no_warnings: true
+          format: parsable
+          output_file: /tmp/yamllint-output-results/hidden-warning.txt
+      - run:
+          name: Observe config-file
+          command: python .circleci/verify-output-file.py expect config-file
+      - yamllint/execute:
+          targets: output-fixtures/long.yml
+          config_file: output-fixtures/config.yml
+          output_file: output-results/config-file.txt
+      - run:
+          name: Observe list-files
+          command: python .circleci/verify-output-file.py expect list-files
+      - yamllint/execute:
+          targets: output-fixtures/listing
+          config_data: "extends: relaxed\nyaml-files: [\"*.yml\", \"*.yaml\"]\nignore: [\"output-fixtures/listing/skip.yml\"]\n"
+          list_files: true
+          output_file: /tmp/yamllint-output-results/list-files.txt
+      - run:
+          name: Observe auto-format
+          command: python .circleci/verify-output-file.py expect auto-format
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          output_file: output-results/auto-format.txt
+      - run:
+          name: Observe colored-format
+          command: python .circleci/verify-output-file.py expect colored-format
+      - yamllint/execute:
+          targets: output-fixtures/warning.yml
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: colored
+          output_file: /tmp/yamllint-output-results/colored-format.txt
+      - run:
+          name: Observe long-literal-path
+          command: python .circleci/verify-output-file.py expect long-literal-path
+      - yamllint/execute:
+          targets: "-output-leading.yml\noutput-fixtures/日本語 ファイル.yml\noutput-fixtures/many-warnings.yml"
+          config_data: "extends: default\nrules:\n  line-length:\n    max: 30\n    level: warning\n"
+          format: parsable
+          output_file: "output-results/-result ~ $HOME *?[a] \"double\" 'single' 結果.txt"
+      - run:
+          name: Verify output_file observations
+          command: python .circleci/verify-output-file.py finish
+      - store_artifacts:
+          path: .output-evidence
+          destination: output-file-runtime
+
+  # D08: EXPECTED TO FAIL. One real lint error; "Execute yamllint" must exit 1.
+  # Nothing stands before the body and nothing converts its status. The
+  # always-run check judges only the result file; the failed step and its
+  # exit status are confirmed in the CircleCI UI.
+  d08-failed-lint-artifact:
+    environment:
+      VERIFICATION_SCOPE: consumer
+      VERIFICATION_IMAGE: cimg/python:3.14
+      RELEASE_COMMIT: 2fc343180c9e13660889ac5643b75fbcabd513ea
+      EXPECTED_YAMLLINT: "1.38.0"
+    executor:
+      name: yamllint/default
+      image: cimg/python:3.14
+    steps:
+      - checkout
+      - yamllint/install:
+          version: "1.38.0"
+      - verify-consumer-checkout
+      - run:
+          name: Prepare D08 fixture and result directory
+          command: python .circleci/verify-consumer-d08.py prepare
+      - yamllint/execute:
+          targets: d08-fixtures/error.yml
+          config_data: "extends: default"
+          format: parsable
+          output_file: /tmp/yamllint-d08-results/lint.txt
+      - run:
+          name: Check D08 result file
+          when: always
+          command: python .circleci/verify-consumer-d08.py check
+      - store_artifacts:
+          path: /tmp/yamllint-d08-results/lint.txt
+          destination: yamllint-d08-results/lint.txt
+      - store_artifacts:
+          path: /tmp/yamllint-d08-evidence
+          destination: yamllint-d08-evidence
 
 workflows:
-  lint-pack:
+  # Every job in this workflow must succeed.
+  consumer-acceptance:
     jobs:
-      - orb-tools/lint:
-          filters: *filters
-      - orb-tools/pack:
-          executor: orb-pack
-          filters: *filters
-      - orb-tools/review:
-          orb_name: yamllint
-          filters: *filters
-      - shellcheck/check:
-          filters: *filters
-      # Verify and expand the inline config before continuing with that exact file.
-      - orb-tools/continue:
-          pipeline_number: << pipeline.number >>
-          vcs_type: << pipeline.project.type >>
-          orb_name: yamllint
-          executor: config-verifier
-          checkout: false
-          attach_workspace: false
-          inject_orb: false
-          config_path: /tmp/yamllint-phase5/injected.yml
-          pre-steps:
-            - checkout
-            - attach_workspace:
-                at: /tmp/yamllint-phase5-packed
-            - run:
-                name: Install configuration verifier dependency
-                command: python -m pip install 'PyYAML==6.0.3'
-            - run:
-                name: Verify source, packed Orb, expanded config and release boundary
-                command: bash .circleci/prepare-ci-contract.sh /tmp/yamllint-phase5-packed/orb_source.tar.gz
-            - store_artifacts:
-                path: /tmp/yamllint-phase5
-                destination: phase5-config
-          requires:
-            - orb-tools/lint
-            - orb-tools/pack
-            - orb-tools/review
-            - shellcheck/check
-          filters: *filters
+      - minimal
+      - boolean-acceptance:
+          name: boolean-acceptance-1.37.1
+          yamllint-version: "1.37.1"
+      - boolean-acceptance:
+          name: boolean-acceptance-1.38.0
+          yamllint-version: "1.38.0"
+      - output-file-acceptance:
+          name: output-file-acceptance-1.37.1
+          yamllint-version: "1.37.1"
+      - output-file-acceptance:
+          name: output-file-acceptance-1.38.0
+          yamllint-version: "1.38.0"
+  # This workflow is red when D08 meets its expectation. Record it separately.
+  d08-failed-step-artifact:
+    jobs:
+      - d08-failed-lint-artifact
