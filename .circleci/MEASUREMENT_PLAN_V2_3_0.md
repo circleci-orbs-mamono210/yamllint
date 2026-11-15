@@ -4,11 +4,11 @@ Target: the Phase 1 design investigation of v2.3.0 (parent #5542). This
 document fixes the execution conditions of H9 and the candidate list and
 observation plan that #5544 and #5545 both use.
 
-This document is a plan. It is not a measurement record, not an adoption of
-any D01-D08 option, not a product change, and not an approval to run
-anything. Nothing here declares an environment supported. The approval that
-#5544 and #5545 need is recorded in section 11 by a human, and it is empty
-until then.
+This document is a plan, not a measurement record, an adoption of any
+D01-D08 option, or a product change. Nothing here declares an environment
+supported. The plan alone does not approve a run. Section 11.1 now records
+the human's approval of the two specified experiment commits; section 11.2
+remains unfilled until the measurements run.
 
 ## 1. Basis
 
@@ -623,20 +623,49 @@ has not happened yet.
 
 | Item | Value |
 | --- | --- |
-| Approved plan version: this file's commit on `main` | (SHA) |
-| Approved scope | (H9 conditions of section 8, candidate list of section 3, cases of sections 5 and 6) |
-| #5544: approved experiment commit on `exp/230-m1` | (SHA of the local commit, read before it is pushed) |
-| #5544: approved configuration | SHA-256 `4d0dd1c6fa28…`, full value in section 8 |
-| #5545: approved experiment commit on `exp/230-m2` | (SHA of the local commit, read before it is pushed) |
-| #5545: approved configuration | SHA-256 `4ac54e233153…`, full value in section 8 |
-| Confirmed artifact retention setting | (days, from Plan, Usage Controls) |
-| Confirmed CircleCI plan and its pipeline-data retention | (value) |
-| Approval to push `exp/230-m1` and run its pipeline | (approved / not approved) |
-| Approval to push `exp/230-m2` and run its pipeline | (approved / not approved) |
-| Approval of the experiment resource range of section 8 | (approved / not approved) |
-| Approval to commit the measurement records to `main` | (approved / not approved) |
-| Approver | (Redmine user ID) |
-| Approval date and time, with time zone | (YYYY-MM-DD hh:mm JST) |
+| Approved plan version: this file's commit on `main` | `dedbccb25625f9b2baecfd78b688f674d9532277` (the plan approved before this approval record was added) |
+| Approved scope | H9 conditions of section 8, E01-E04 in section 3, cases of sections 5 and 6, and the decisions recorded in section 12. E05 remains reserve-only; a changed configuration/commit requires its own approval. |
+| #5544: approved experiment commit on `exp/230-m1` | `699a626fa37388df295d9bdbae7c610c15bded88` (local commit reported by the human before push) |
+| #5544: approved configuration | SHA-256 `4d0dd1c6fa28d2b575fcc1acab30c20e6386738326da2acfa043f52cb6db487f` |
+| #5545: approved experiment commit on `exp/230-m2` | `10adeeee88ecbc868ba5b26ed72e950416349fe2` (local commit reported by the human before push) |
+| #5545: approved configuration | SHA-256 `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375` |
+| Confirmed artifact retention setting | 30 days: the Free-plan default adopted in the human-approved proposal. No per-organisation numeric setting was displayed; see the evidence note below. |
+| Confirmed CircleCI plan and its pipeline-data retention | Free, observed in the organisation Plan screen on 2026-11-15 JST; pipeline data retention is 90 days under the published policy. |
+| Approval to push `exp/230-m1` and run its pipeline | Approved for human ID 3, after #5543 completion is confirmed and this approval is recorded. The workflow hold and revision/hash checks remain required. |
+| Approval to push `exp/230-m2` and run its pipeline | Approved for human ID 3, only after #5544 is complete and its deliverable version is fixed. A revision of the M2 configuration or commit requires new approval. |
+| Approval of the experiment resource range of section 8 | Approved: Docker executor, small, M1 6 compute jobs and M2 4 compute jobs, each with an approval hold; case-created files only under `/tmp/meas` and the job checkout. |
+| Approval to commit the measurement records to `main` | Approved for human ID 3 after reviewing the actual records; the experiment configurations and branches are never merged into `main`. |
+| Approver | The human project owner, Redmine user ID 3, as designated in section 8. |
+| Approval date and time, with time zone | 2026-11-15 21:41 JST (UTC+09:00), recorded on receipt of the explicit approval; see provenance below. |
+
+Approval provenance: the human first supplied the local preparation output
+with the two SHAs above and with `pushed`, `measurement_started` and
+`human_approved` all false. After being shown those exact commits and the
+scope of `APPROVAL_DRAFT.md`, the human replied "承認します。" in this
+conversation. ChatGPT recorded that decision on receipt. The clock reading
+was 2026-11-15 21:41:47 JST (2026-11-15T12:41:47Z); the minute in the table
+is the approval-receipt record time, not a platform-provided timestamp of
+the message. No measurement had been started by this work when recorded.
+The local commit SHAs come from the human's supplied output; they were not
+independently fetched from GitHub before push.
+
+Retention evidence: the organisation Plan screen showed Free and no Usage
+Controls entry. CircleCI's official persistence documentation limits custom
+retention controls to paid plans and states the artifact default as 30
+days. The approved proposal explicitly adopts that default, rather than
+claiming a numeric setting was read from the organisation screen. Its
+same-day artifact evacuation requirement remains unchanged. Sources:
+
+- https://app.circleci.com/settings/plan/github/circleci-orbs-mamono210/overview
+- https://circleci.com/docs/guides/optimize/persist-data/#custom-storage-usage
+- https://support.circleci.com/en/articles/15091548-cloud-data-retention-policy-and-settings
+
+The approved plan version remains `dedbccb25625f9b2baecfd78b688f674d9532277`.
+The later commit that saves this approval is the approval-record commit,
+identified from Git history after committing; it is not a new experiment
+commit. This record does not change the measurement methods or configuration
+hashes, and does not require recreating the two approved local commits.
+It does not itself change any Redmine ticket or record a completed run.
 
 Both experiment commits can be created locally from `main` before anything
 is pushed, because neither configuration depends on a measurement result.
@@ -678,28 +707,27 @@ A re-run after a plan revision gets its own row, its own approval reference
 in 11.1, and its own configuration hash. An approval obtained after a run
 started does not cover that run.
 
-## 12. Open questions for the human
+## 12. Human decisions recorded with section 11.1
 
-1. Whether the path of this document, `.circleci/MEASUREMENT_PLAN_V2_3_0.md`,
-   is the intended location for the Phase 1 plan, and whether the two
-   measurement records of section 9 belong beside it. The repository has no
-   ADR directory at the baseline commit, and `.circleci/*.md` is where the
-   release, consumer and integration documents live.
-2. Whether E03 `ubuntu:22.04` is acceptable as mandatory candidate 1. It is
-   chosen because a distribution Python there is expected to provide
-   `python3` without `python` and without the marker, which is the
-   combination the role needs; the expectation is verified by M-00.
-3. Whether the staged consumer-side preparation of section 3 may be used
-   for the measurement in E03, E04 and E05. This is a question about the
-   measurement only. H3, how a candidate that needs OS packages is treated
-   in the supported range, is decided after the measurement: the roadmap
-   places its judgment at "Phase 1 の実測後", and #5544's readings of stage
-   A and stage B are the material for it. Approving the preparation here
-   does not decide H3, and H3 is not asked before the measurement.
-4. Whether the carry-in limitation of M1-05, measured on E01 only, is an
-   acceptable limit for D04 at this phase.
-5. The artifact retention setting and the CircleCI plan, for section 9 and
-   the two confirmation rows of section 11.1.
+1. Accepted: this plan stays at `.circleci/MEASUREMENT_PLAN_V2_3_0.md`,
+   and the two measurement records of section 9 belong beside it.
+2. Accepted for the measurement: E03 `ubuntu:22.04` is mandatory candidate
+   1. Its planned Python and marker state is still verified by M-00; the
+   approval does not establish those observations or declare support.
+3. Accepted for the measurement: the staged consumer-side preparation in
+   section 3, including M1 Stage B only after its stated failure conditions.
+   E05 is reserve-only and is not enabled by the approved configurations.
+   A changed configuration/commit requires its own approval. H3 remains a
+   decision after the measurement, as required by the Roadmap's
+   "Phase 1 の実測後"; this approval does not decide H3.
+4. Accepted as a Phase 1 limit: M1-05 carry-in is measured on E01 only.
+   Its result is not generalised to the other candidates.
+5. Accepted: the retention basis and same-day evacuation in section 11.1.
+   The confirmed Free plan has a published 90-day pipeline-data retention;
+   the 30-day artifact default is adopted with the stated evidence limit.
+
+These are measurement-scope decisions, not adoption of D01-D08, a change
+to the supported range, a formal Roadmap revision, or a release approval.
 
 ## 13. Revision history
 
@@ -709,6 +737,7 @@ started does not cover that run.
 | Second version, commit `f4dd82a` on branch `5543` | Five corrections after review, plus the H3 timing note. Section 11 was split so that the approval, which #5543 C6 needs, no longer waits for run start times, which #5544 and #5545 record; the approved configurations are now bound by content hash, and each job records the hash it ran. M2-06 gained a direct reading of the priority between a lint status and a save failure during writing, using the `RLIMIT_FSIZE` fault the repository already uses. Section 3 and M1-03 now stage the consumer-side preparation, so the need for the virtual-environment package is measured rather than installed in advance. M2-02 no longer reads the `BASH_ENV` content; survival is judged by re-hashing the remembered byte range. Section 9 no longer assumes the 30-day default and ties evacuation to the confirmed retention setting. Section 12 records that H3 is decided after the measurement. |
 | Third version, commit `2c3f230` on branch `5543`; merged as `92f15dd` | Two corrections after the second review. M1-03's stage B condition no longer relies on the interpreter being absent: `venv` places the interpreter before it bootstraps pip, so a creation that fails for lack of `ensurepip` still leaves `bin/python`. Stage B now follows from the creation status, the interpreter, and a pip check inside the environment, and the partial result is kept for M1-05. Section 8 and section 11 now separate the plan version from the experiment commit: the experiment commit is created locally, approved per stage by SHA together with its configuration hash, and only then pushed, and an approval hold in each measurement workflow keeps the start separate from the push. The #5544 job count in section 8.1 was corrected from 5 to 6. |
 | Fourth version, r4 package based on `92f15dd` | At the human's request, ChatGPT corrected the measurement configurations: enforce candidate/revision gates; isolate controlled interpreter tests from BASH_ENV and remove their PATH dependency on cat; preserve separate complete output streams and pipeline failures; generate a separate evidence index; compare inside/outside installation with equal fixtures and targets; and keep literal/expanded path cases under /tmp/meas. E01 carry-in jobs now record and check revision identity as well, and their temporary paths were moved under /tmp/meas. Section 8 documents how the existing approved values are supplied at manual trigger time. Configuration hashes were updated; this is not measurement execution or human approval. |
+| Approval record, 2026-11-15 21:41 JST | Records the human approval of plan `dedbccb`, M1 commit `699a626fa37388df295d9bdbae7c610c15bded88`, and M2 commit `10adeeee88ecbc868ba5b26ed72e950416349fe2`. Completes section 11.1 and records the decisions in section 12, with retention evidence and approval-time provenance. No measurement configuration, method, product file, or actual run time is changed. |
 
 The earlier versions stay in the branch history. The corrections above change
 how the cases are run and how the approval is recorded; they do not change
