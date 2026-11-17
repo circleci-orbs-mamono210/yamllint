@@ -527,8 +527,12 @@ a temporary experiment mechanism is stated in each case above.
 
 | Item | Condition |
 | --- | --- |
-| Measurement drafting, case design, configuration drafting, record drafting, evidence mapping | Claude, Redmine user ID 11 |
-| Branch push, pipeline start, CircleCI UI confirmation, artifact download, commit to `main`, Redmine journal entries, approvals | the human, Redmine user ID 3 |
+| Measurement drafting, case design, configuration drafting | Claude, Redmine user ID 11 |
+| M1 / #5544: approved SHA/hash verification, parameterised pipeline start, job-result and CircleCI UI checks, log/artifact collection, observation/failure/gap analysis, record drafting and evidence mapping | ChatGPT Work, Redmine user ID 10; the human-approved M1 operator amendment in section 11.1 applies |
+| M1 / #5544: experiment-branch push, `hold-until-approved` approval, final review and merge of measurement records to `main` | the human, Redmine user ID 3 |
+| M2 / #5545: record drafting and evidence mapping | Claude, Redmine user ID 11; unchanged |
+| M2 / #5545: branch push, pipeline start, CircleCI UI confirmation and artifact download | the human, Redmine user ID 3; unchanged |
+| Both stages: approvals, final review and merge to `main`, Redmine journal entries and branch cleanup | the human, Redmine user ID 3. A separately approved Redmine update may be performed by ChatGPT; the M1 operator amendment is not blanket permission for future ticket changes. |
 | Repository | `circleci-orbs-mamono210/yamllint` |
 | CI project | `gh/circleci-orbs-mamono210/yamllint`, the existing project |
 | Place of execution | CircleCI Docker executor, `resource_class: small`, on throwaway branches of that repository |
@@ -536,7 +540,7 @@ a temporary experiment mechanism is stated in each case above.
 | Approved configuration content | #5544: SHA-256 `4d0dd1c6fa28d2b575fcc1acab30c20e6386738326da2acfa043f52cb6db487f`. #5545: SHA-256 `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375`. A different hash is a different configuration and needs its own approval. |
 | Branches | `exp/230-m1` for #5544, `exp/230-m2` for #5545. Never merged. Deleted after section 9 evacuation is confirmed. |
 | Plan version and experiment commit | Two different commits. The plan version is the commit of this file on `main`. The experiment commit is the commit on the throwaway branch that carries the measurement configuration. Section 11.1 records each separately, the experiment commit once per stage. |
-| Order of commit, approval, push and start | 1. Create the experiment commit locally. 2. Record its SHA and configuration hash in section 11.1 and complete the human approval. 3. Push the branch; the default empty pipeline parameters select no measurement workflow. 4. In the CircleCI web app, trigger that branch with string parameters `approved-commit` and `approved-config-sha256` copied from the approved rows. 5. Confirm the triggered revision and approve `hold-until-approved`. Each job checks the supplied approval values before its measurement cases. Section 11.1 remains the authoritative approval, and section 11.2 records the actual start time. |
+| Order of commit, approval, push and start | 1. Create the experiment commit locally. 2. Record its SHA and configuration hash in section 11.1 and complete the human approval. 3. Push the branch; the default empty pipeline parameters select no measurement workflow. 4. After verifying the approved SHA and hash, the stage operator (ChatGPT for M1; the human for M2) triggers that branch in the CircleCI web app with string parameters `approved-commit` and `approved-config-sha256` copied from the approved rows. 5. The human confirms the triggered revision and approves `hold-until-approved`. Each job checks the supplied approval values before its measurement cases. Section 11.1 remains the authoritative approval, and section 11.2 records the actual start time. |
 | Why `[ci skip]` is not used | On GitHub OAuth and Bitbucket Cloud pipelines, a skip tag in the commit message also blocks a later trigger from the API or the web app, so it cannot be combined with a manual start after the approval. The hold job does not have that limitation. |
 | Revision identification | Each job records the experiment commit SHA, its subject line and `sha256sum .circleci/config.yml`. All three go into the measurement record with the pipeline number, workflow ID and job URLs. The SHA and the hash must equal the values approved for that stage in section 11.1; a mismatch stops the stage. |
 | Keeping it out of `main` | The measurement configuration and its fixtures exist only on the throwaway branches. The only files this phase adds to `main` are this plan and the two measurement records of section 9. `git log --oneline main -- .circleci/config.yml` and a diff of `main` against the baseline are recorded after the runs to show no verification configuration reached `main`. |
@@ -582,8 +586,8 @@ needs later.
 | Step | Owner | Timing |
 | --- | --- | --- |
 | Every case writes its commands, exit statuses and observed values to files under `/tmp/meas`, which the job uploads with `store_artifacts` | the configuration | each run |
-| Download the artifacts and keep the job URLs | the human, ID 3 | on the day of the run, and in any case before the artifact retention confirmed in section 11 expires. If that setting is not confirmed, the download happens on the day of the run and the stage does not continue until it is confirmed. No fixed number of days is assumed from the default |
-| Draft `.circleci/MEASUREMENT_V2_3_0_M1.md` for #5544 and `.circleci/MEASUREMENT_V2_3_0_M2.md` for #5545, embedding the evidence that a later judgment needs, with the pipeline, workflow, job and commit identifiers | Claude, ID 11 | after the download |
+| Collect the logs and artifacts and keep the job URLs | M1: ChatGPT, ID 10; M2: the human, ID 3 | on the day of the run, and in any case before the artifact retention confirmed in section 11 expires. If that setting is not confirmed, the download happens on the day of the run and the stage does not continue until it is confirmed. No fixed number of days is assumed from the default |
+| Draft `.circleci/MEASUREMENT_V2_3_0_M1.md` for #5544 and `.circleci/MEASUREMENT_V2_3_0_M2.md` for #5545, embedding the evidence that a later judgment needs, with the pipeline, workflow, job and commit identifiers | M1: ChatGPT, ID 10; M2: Claude, ID 11 | after the download |
 | Review and commit those records to `main` | the human, ID 3 | before the branch is deleted |
 | Record the commit SHA and the record file names in a journal entry on #5544 and #5545 | the human, ID 3 | after the commit |
 
@@ -621,6 +625,10 @@ itself and for the link between its object, plan version, scope, approver
 and the approval time with its time zone. It does not ask for a run that
 has not happened yet.
 
+The original approval table below is retained as history. For active
+experiment commit SHAs, use the approved recovered-commit table later in
+this section. For M1 ownership, apply the M1 operator amendment.
+
 | Item | Value |
 | --- | --- |
 | Approved plan version: this file's commit on `main` | `dedbccb25625f9b2baecfd78b688f674d9532277` (the plan approved before this approval record was added) |
@@ -631,7 +639,7 @@ has not happened yet.
 | #5545: approved configuration | SHA-256 `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375` |
 | Confirmed artifact retention setting | 30 days: the Free-plan default adopted in the human-approved proposal. No per-organisation numeric setting was displayed; see the evidence note below. |
 | Confirmed CircleCI plan and its pipeline-data retention | Free, observed in the organisation Plan screen on 2026-11-15 JST; pipeline data retention is 90 days under the published policy. |
-| Approval to push `exp/230-m1` and run its pipeline | Approved for human ID 3, after #5543 completion is confirmed and this approval is recorded. The workflow hold and revision/hash checks remain required. |
+| Approval to push `exp/230-m1` and run its pipeline | Originally approved for human ID 3, after #5543 completion is confirmed and this approval is recorded. The M1 operator amendment below transfers SHA/hash verification and pipeline start to ChatGPT ID 10; branch push and hold approval stay with human ID 3. The workflow hold and revision/hash checks remain required. |
 | Approval to push `exp/230-m2` and run its pipeline | Approved for human ID 3, only after #5544 is complete and its deliverable version is fixed. A revision of the M2 configuration or commit requires new approval. |
 | Approval of the experiment resource range of section 8 | Approved: Docker executor, small, M1 6 compute jobs and M2 4 compute jobs, each with an approval hold; case-created files only under `/tmp/meas` and the job checkout. |
 | Approval to commit the measurement records to `main` | Approved for human ID 3 after reviewing the actual records; the experiment configurations and branches are never merged into `main`. |
@@ -660,10 +668,11 @@ same-day artifact evacuation requirement remains unchanged. Sources:
 - https://circleci.com/docs/guides/optimize/persist-data/#custom-storage-usage
 - https://support.circleci.com/en/articles/15091548-cloud-data-retention-policy-and-settings
 
-The approved plan version remains `dedbccb25625f9b2baecfd78b688f674d9532277`.
-The later commit that saves this approval is the approval-record commit,
-identified from Git history after committing; it is not a new experiment
-commit. This record does not change the measurement methods or configuration
+The original approved plan version is `dedbccb25625f9b2baecfd78b688f674d9532277`.
+Its approval-record commit is `9bfdc4431792cd9870fc02c02194e1158c6c39ed`;
+this is not an experiment commit. The M1 operator amendment below records
+the subsequent responsibility change without replacing that approval history.
+This record does not change the measurement methods or configuration
 hashes, and does not require recreating the two approved local commits.
 It does not itself change any Redmine ticket or record a completed run.
 
@@ -674,9 +683,10 @@ are never compared with each other. If #5544 leads to a revised #5545
 configuration, a new #5545 commit row and configuration row, with their own
 approval time, are added before #5545 starts.
 
-The human copies the approved experiment SHA and full configuration hash
-into the stage's `approved-commit` and `approved-config-sha256` pipeline
-parameters when triggering it. These are temporary measurement inputs, not
+The stage operator (ChatGPT for M1; the human for M2) copies the approved
+experiment SHA and full configuration hash into the stage's `approved-commit`
+and `approved-config-sha256` pipeline parameters when triggering it. These
+are temporary measurement inputs, not
 Orb parameters. Their values contain no credentials. The configuration
 cannot contain its own eventual commit SHA or whole-file hash without a
 self-reference, so those approved values are supplied outside the file.
@@ -687,12 +697,126 @@ Ticket registration is not an approval to run. A record without a time zone
 is not an approval. #5543 C6 is met when this table is complete; #5544 and
 #5545 do not start before then.
 
+#### M1 operator amendment, 2026-11-15 22:35 JST
+
+The human project owner, Redmine user ID 3, approved the following change
+for #5544 only, after being shown this division of work:
+
+| M1 task | Owner |
+| --- | --- |
+| Push the locally prepared `exp/230-m1` branch | Human, ID 3 |
+| Verify the approved experiment SHA and configuration hash | ChatGPT Work, ID 10 |
+| Trigger the pipeline with the approved parameters | ChatGPT Work, ID 10 |
+| Approve `hold-until-approved` | Human, ID 3 |
+| Check the six compute jobs and collect logs and artifacts | ChatGPT Work, ID 10 |
+| Analyse observations, failures and gaps; draft the measurement record | ChatGPT Work, ID 10 |
+| Final review and merge of the measurement record to `main` | Human, ID 3 |
+
+Approval provenance: after the division above was proposed, the human
+explicitly instructed "担当分担を変更してください" in this conversation.
+The approval-receipt clock reading was 2026-11-15 22:35:14 JST
+(2026-11-15T13:35:14Z); 22:35 JST is the receipt record time, not a
+platform-provided message timestamp. This is a later, scope-limited
+amendment to the 21:41 JST approval, not a replacement of its history.
+
+Revision and effect: the previous plan is preserved at
+`9bfdc4431792cd9870fc02c02194e1158c6c39ed`. The new plan revision is the
+commit containing this amendment, identified from Git history and recorded
+by full SHA in #5544 before M1 starts. The human reviews and merges this
+plan amendment to `main` before the M1 pipeline is triggered. If that merge
+changes the plan content, its difference and applicable approval must be
+resolved before execution.
+
+The change affects the operational owners in sections 8 and 9 and the M1
+operator in this approval record. The candidates, cases, resource limits,
+retention requirements, approved experiment SHAs and configuration hashes
+are unchanged. The experiment commits do not need to be recreated or
+rebased onto this documentation revision. M2 / #5545 retains its existing
+division of work and prerequisites. This amendment does not change the
+separate human UI-confirmation boundary for post-publication verification.
+
+#5543's completed approval record remains historical evidence; the scope
+and completion criteria are unchanged. For #5544 C1/C6 and parent #5542 C2,
+the M1 record links the old and new plan revisions, this approval, and the
+actual pipeline, hold and run times. Both hold approval and measurement
+start must be later than this amendment's approval. Completion checkboxes
+remain dependent on actual evidence. This operator change does not itself
+start a measurement or authorise automatic retries, configuration changes,
+hold approval by ChatGPT, merging experiment branches, or future Redmine
+mutations without the required separate approval.
+
+#### Recovered experiment commits, approved 2026-11-17 21:21 JST
+
+Approval status: APPROVED by the human project owner, Redmine user ID 3.
+The replacement commits below are the active experiment inputs for their
+stages. The original commit rows above remain historical evidence.
+
+| Stage | Previous approved commit (historical) | Approved replacement commit | Configuration SHA-256 (unchanged) |
+| --- | --- | --- | --- |
+| #5544 / `exp/230-m1` | `699a626fa37388df295d9bdbae7c610c15bded88` | `611af5c706c263c4b211b26412e587b39adf0d4a` | `4d0dd1c6fa28d2b575fcc1acab30c20e6386738326da2acfa043f52cb6db487f` |
+| #5545 / `exp/230-m2` | `10adeeee88ecbc868ba5b26ed72e950416349fe2` | `ebd63fd1426dab201f5190b7e337e65eed09ca5a` | `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375` |
+
+Approval provenance: the human supplied the completed local recovery
+report with these exact replacement SHAs and the unchanged configuration
+hashes. ChatGPT presented adoption of these two commits, preservation of
+the old SHAs, and recording the recovery reason, old/new identifiers and
+approval time in this plan and #5544/#5545. The human explicitly replied
+"承認します。". The receipt clock read 2026-11-17 21:21:31 JST
+(2026-11-17T12:21:31Z). The recorded approval time, 2026-11-17 21:21 JST
+(UTC+09:00), is the receipt record time, not a platform-provided message
+timestamp. This later approval does not backdate or replace the original
+2026-11-15 approval history or the M1 operator amendment.
+
+Recovery reason and evidence: the former M1 worktree could not resolve its
+Git administrative directory. The source repository listed no experiment
+branch refs and could not resolve the old M1 commit. The recovery report
+then recorded both stages as complete, both former commits as not
+preserved, and the source repository state as unchanged. Independent local
+repositories and bundle backups were created under
+`yamllint-5544-recovered`. These facts and SHAs come from the human's
+supplied local report; the replacement commits have not yet been
+independently retrieved from GitHub. The report states that the recovery
+script did not push or start CI. The same configuration hashes do not
+make the replacement commits identical to the old commits.
+
+Both experiment commits retain parent
+`dedbccb25625f9b2baecfd78b688f674d9532277`. The candidates, cases, resource
+limits, configuration hashes, retention requirements and division of work
+are unchanged. The new SHAs replace the old experiment SHAs for execution,
+including the `approved-commit` pipeline parameter and job comparisons.
+The original approval and the M1 operator amendment continue to apply
+except for this explicitly approved replacement of experiment commits.
+
+M1 remains six compute jobs with a human approval hold. M2 remains four
+compute jobs with a human approval hold, and may start only after #5544
+is complete and its deliverable version is fixed. The M1 operator
+amendment applies to M1 only. Human branch push, hold approval and final
+review/main merge remain as specified in section 8.
+
+The previous main plan is preserved at
+`9bfdc4431792cd9870fc02c02194e1158c6c39ed`. This combined amendment also
+incorporates the already approved M1 division of work. Its commit is
+identified from Git history after committing; this document cannot embed
+its own eventual commit SHA. The human reviews and merges this plan to
+main before measurement execution. After push, the remote experiment
+commit and configuration hash are verified against this table before the
+pipeline is triggered. The experiment branches are never merged into main.
+
+For #5544 C1/C6, #5545 C1/C7 and parent #5542 C2, the relevant measurement
+record links the old/new plan revisions, old/new experiment commits, this
+approval, pipeline revision, configuration hash, hold approval and actual
+run-start time. Both hold approval and measurement start must be later
+than this approval. #5543's prior completion remains historical evidence;
+no completion checkbox or measured result is established by this recovery.
+
 ### 11.2 Runs, recorded afterwards by #5544 and #5545
 
 Not part of #5543's completion. Each stage records its own row in its
 measurement record, and the comparison with 11.1 belongs to #5542 C2,
 #5544 C1 and #5545 C1: the start must be later than the approval time of
-the plan version that run used, in one time zone.
+the plan version that run used, in one time zone. For M1, include the
+operator-amendment plan revision and approval in section 11.1 as well as
+the original experiment approval.
 
 | Stage | Plan version used | Experiment commit recorded by the job | Configuration hash recorded by the job | Hold approved at, with time zone | Run start, with time zone | Where recorded |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -738,6 +862,8 @@ to the supported range, a formal Roadmap revision, or a release approval.
 | Third version, commit `2c3f230` on branch `5543`; merged as `92f15dd` | Two corrections after the second review. M1-03's stage B condition no longer relies on the interpreter being absent: `venv` places the interpreter before it bootstraps pip, so a creation that fails for lack of `ensurepip` still leaves `bin/python`. Stage B now follows from the creation status, the interpreter, and a pip check inside the environment, and the partial result is kept for M1-05. Section 8 and section 11 now separate the plan version from the experiment commit: the experiment commit is created locally, approved per stage by SHA together with its configuration hash, and only then pushed, and an approval hold in each measurement workflow keeps the start separate from the push. The #5544 job count in section 8.1 was corrected from 5 to 6. |
 | Fourth version, r4 package based on `92f15dd` | At the human's request, ChatGPT corrected the measurement configurations: enforce candidate/revision gates; isolate controlled interpreter tests from BASH_ENV and remove their PATH dependency on cat; preserve separate complete output streams and pipeline failures; generate a separate evidence index; compare inside/outside installation with equal fixtures and targets; and keep literal/expanded path cases under /tmp/meas. E01 carry-in jobs now record and check revision identity as well, and their temporary paths were moved under /tmp/meas. Section 8 documents how the existing approved values are supplied at manual trigger time. Configuration hashes were updated; this is not measurement execution or human approval. |
 | Approval record, 2026-11-15 21:41 JST | Records the human approval of plan `dedbccb`, M1 commit `699a626fa37388df295d9bdbae7c610c15bded88`, and M2 commit `10adeeee88ecbc868ba5b26ed72e950416349fe2`. Completes section 11.1 and records the decisions in section 12, with retention evidence and approval-time provenance. No measurement configuration, method, product file, or actual run time is changed. |
+| M1 operator amendment, 2026-11-15 22:35 JST, based on `9bfdc4431792cd9870fc02c02194e1158c6c39ed` | Records the human-approved #5544 division of work: ChatGPT verifies and triggers the approved M1 pipeline, checks results, collects evidence and drafts the M1 record; the human pushes the experiment branch, approves the hold and performs final review/main merge. M2, the measurement methods, experiment commits and configuration hashes are unchanged. Old/new plan revisions and the approval are linked in #5544 before execution. |
+| Recovery approval, 2026-11-17 21:21 JST | Adopts M1 `611af5c706c263c4b211b26412e587b39adf0d4a` and M2 `ebd63fd1426dab201f5190b7e337e65eed09ca5a` after local recovery. Preserves old SHAs and approvals, records the human approval and its provenance, and retains the existing configuration hashes, cases, ownership and M2 prerequisite. Includes the already approved M1 operator amendment. No measurement execution is asserted. |
 
 The earlier versions stay in the branch history. The corrections above change
 how the cases are run and how the approval is recorded; they do not change
