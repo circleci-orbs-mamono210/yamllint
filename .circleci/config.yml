@@ -1,71 +1,638 @@
+---
+# Temporary measurement configuration for Redmine #5545.
+#
+# v2.3.0 Phase 1 design investigation. Plan: .circleci/MEASUREMENT_PLAN_V2_3_0.md
+# on main (#5543). This file belongs ONLY on the throwaway branch exp/230-m2,
+# copied to .circleci/config.yml there. It must never be merged into main.
+# It starts only after #5544 is complete and its deliverable version is fixed.
+#
+# Handoff is observed across real, separate run steps. A result obtained from a
+# child process inside one step is never recorded as a step boundary result.
 version: 2.1
-setup: true
 
-orbs:
-  orb-tools: circleci/orb-tools@12.5.0
-  shellcheck: circleci/shellcheck@3.4.0
+# These are measurement-only inputs, copied from the human's approval record.
+parameters:
+  approved-commit:
+    type: string
+    default: ""
+  approved-config-sha256:
+    type: string
+    default: ""
 
-executors:
-  config-verifier:
+commands:
+  write_helper:
+    description: Write the observation helper and the identity probe.
+    steps:
+      - run:
+          name: M-00a Write the observation helper
+          command: |
+            set -euo pipefail
+            mkdir -p /tmp/meas
+            cat > /tmp/meas/obs.sh \<<'HELPER'
+            MEAS_DIR=/tmp/meas
+            MEAS_LOG="${MEAS_DIR}/${MEAS_ENV_ID}.log"
+            MEAS_INDEX="${MEAS_DIR}/${MEAS_ENV_ID}.index.tsv"
+            mkdir -p "${MEAS_DIR}/readings/${MEAS_ENV_ID}"
+            if [ ! -f "${MEAS_INDEX}" ]; then
+                printf 'reading\texit\tstdout\tstderr\n' > "${MEAS_INDEX}"
+            fi
+
+            # Expected refusals are observations. Gates below explicitly reject failures.
+            obs() {
+                local id="$1"
+                shift
+                [[ "${id}" =~ ^[a-zA-Z0-9_.-]+$ ]] || return 2
+                OBS_STDOUT="${MEAS_DIR}/readings/${MEAS_ENV_ID}/${id}.stdout"
+                OBS_STDERR="${MEAS_DIR}/readings/${MEAS_ENV_ID}/${id}.stderr"
+                {
+                    printf '\n===== %s =====\ncmd:' "${id}"
+                    printf ' %q' "$@"
+                    printf '\nstdout: %s\nstderr: %s\n' "${OBS_STDOUT}" "${OBS_STDERR}"
+                } >> "${MEAS_LOG}"
+                OBS_STATUS=0
+                "$@" > "${OBS_STDOUT}" 2> "${OBS_STDERR}" || OBS_STATUS=$?
+                {
+                    printf '%s\n' '--- stdout ---'
+                    cat "${OBS_STDOUT}"
+                    printf '\n%s\n' '--- stderr ---'
+                    cat "${OBS_STDERR}"
+                    printf '\nexit: %d\n' "${OBS_STATUS}"
+                } >> "${MEAS_LOG}"
+                printf '%s\t%d\t%s\t%s\n' "${id}" "${OBS_STATUS}" "${OBS_STDOUT}" "${OBS_STDERR}" >> "${MEAS_INDEX}"
+                return 0
+            }
+
+            obs_sh() {
+                local id="$1"
+                shift
+                obs "${id}" /bin/bash -o pipefail -c "$*"
+            }
+
+            note() {
+                printf '\n--- note: %s\n' "$*" >> "${MEAS_LOG}"
+            }
+
+            stop() {
+                note "STOP: $*; subsequent cases were not run"
+                printf 'STOP: %s\n' "$*" >&2
+                return 1
+            }
+
+            require_obs() {
+                local id="$1"
+                shift
+                obs "${id}" "$@"
+                if [ "${OBS_STATUS}" -ne 0 ]; then
+                    stop "${id} failed with status ${OBS_STATUS}"
+                    return 1
+                fi
+            }
+
+            check_revision() {
+                local actual_sha actual_hash rest dirty
+                [[ "${MEAS_APPROVED_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || { stop 'approved commit is missing or malformed'; return 1; }
+                [[ "${MEAS_APPROVED_CONFIG_SHA256:-}" =~ ^[0-9a-f]{64}$ ]] || { stop 'approved config hash is missing or malformed'; return 1; }
+                require_obs revision-sha git rev-parse HEAD || return 1
+                IFS= read -r actual_sha < "${OBS_STDOUT}"
+                require_obs config-hash sha256sum .circleci/config.yml || return 1
+                read -r actual_hash rest < "${OBS_STDOUT}"
+                require_obs worktree-clean git status --porcelain || return 1
+                dirty="${OBS_STDOUT}"
+                obs revision-branch git rev-parse --abbrev-ref HEAD
+                obs commit-subject git log -1 --pretty=%s
+                obs_sh pipeline 'printf "pipeline=%s job=%s build_url=%s workflow=%s\n" "${MEAS_PIPELINE_NUMBER:-}" "${CIRCLE_JOB:-}" "${CIRCLE_BUILD_URL:-}" "${CIRCLE_WORKFLOW_ID:-}"'
+                [ "${actual_sha}" = "${MEAS_APPROVED_COMMIT}" ] || { stop 'experiment commit differs from the approved commit'; return 1; }
+                [ "${actual_hash}" = "${MEAS_APPROVED_CONFIG_SHA256}" ] || { stop 'configuration differs from the approved hash'; return 1; }
+                [ ! -s "${dirty}" ] || { stop 'working tree is not clean'; return 1; }
+                [ "${CIRCLE_SHA1:-}" = "${actual_sha}" ] || { stop 'pipeline revision differs from checkout'; return 1; }
+                [ "${CIRCLE_BRANCH:-}" = "exp/230-${MEAS_STAGE}" ] || { stop 'unexpected experiment branch'; return 1; }
+                note 'approved revision and configuration matched; checkout is clean'
+            }
+
+            show_index() {
+                note "evidence index: ${MEAS_INDEX}; raw streams are separate files"
+                cat "${MEAS_INDEX}" >> "${MEAS_LOG}"
+            }
+            HELPER
+            cat > /tmp/meas/probe-identity.sh \<<'PROBE'
+            #!/bin/bash
+            # M-00 identity and PEP 668 marker readings. $1 is the phase label.
+            set -u
+            source /tmp/meas/obs.sh
+            PHASE="$1"
+            note "identity phase=${PHASE} image=${MEAS_IMAGE:-unknown}"
+            obs "id-user-${PHASE}" id -u
+            obs "uname-${PHASE}" uname -m
+            obs "os-release-${PHASE}" cat /etc/os-release
+            for c in python python3 pip pip3 git ssh yamllint; do
+                obs "which-${c}-${PHASE}" command -v "${c}"
+            done
+            obs "python3-version-${PHASE}" python3 -VV
+            obs "stdlib-${PHASE}" python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))'
+            obs "venv-state-${PHASE}" python3 -c 'import sys; print(sys.prefix, sys.base_prefix, sys.prefix != sys.base_prefix)'
+            obs "pip-version-${PHASE}" python3 -m pip --version
+            STDLIB="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))' 2>/dev/null || true)"
+            if [ -n "${STDLIB}" ]; then
+                obs "marker-sysconfig-${PHASE}" ls -l "${STDLIB}/EXTERNALLY-MANAGED"
+            else
+                note "stdlib path unavailable; marker-sysconfig-${PHASE} not read"
+            fi
+            obs_sh "marker-usrlib-${PHASE}" 'ls -l /usr/lib/python3*/EXTERNALLY-MANAGED'
+            obs_sh "marker-head-${PHASE}" 'head -20 /usr/lib/python3*/EXTERNALLY-MANAGED'
+            PROBE
+            cat > /tmp/meas/check-candidate.py \<<'CANDIDATE'
+            #!/usr/bin/env python3
+            """Check only the planned candidate roles, not any product behaviour."""
+            import json
+            import os
+            from pathlib import Path
+            import shutil
+            import sys
+            import sysconfig
+
+
+            def failures(role, facts):
+                expected = {
+                    'E01': (True, False, '3.14', None, None),
+                    'E02': (True, False, '3.13', None, None),
+                    'E03': (False, False, None, 'ubuntu', '22.04'),
+                    'E04': (False, True, None, 'ubuntu', '24.04'),
+                    'E05': (False, True, None, 'debian', '12'),
+                }
+                if role not in expected:
+                    return ['unknown candidate role']
+                python, marker, version, distro, release = expected[role]
+                errors = []
+                if facts['python_present'] != python:
+                    errors.append('python command presence differs from the role')
+                if facts['marker_present'] != marker:
+                    errors.append('base stdlib marker state differs from the role')
+                if facts['in_venv']:
+                    errors.append('base python3 is already inside a virtual environment')
+                if version and facts['python_version'] != version:
+                    errors.append('Python minor version differs from the image role')
+                if distro and (facts['os_id'], facts['os_version']) != (distro, release):
+                    errors.append('distribution identity differs from the image role')
+                return errors
+
+
+            def main():
+                release = {}
+                for line in Path('/etc/os-release').read_text().splitlines():
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        release[key] = value.strip('"')
+                stdlib = Path(sysconfig.get_path('stdlib'))
+                facts = {
+                    'python_present': shutil.which('python') is not None,
+                    'marker_present': (stdlib / 'EXTERNALLY-MANAGED').is_file(),
+                    'in_venv': sys.prefix != sys.base_prefix,
+                    'python_version': f'{sys.version_info.major}.{sys.version_info.minor}',
+                    'os_id': release.get('ID'),
+                    'os_version': release.get('VERSION_ID'),
+                }
+                role = os.environ['MEAS_ENV_ID'].split('-')[0]
+                print(json.dumps({'role': role, **facts}, sort_keys=True))
+                errors = failures(role, facts)
+                for error in errors:
+                    print('STOP: ' + error, file=sys.stderr)
+                return 2 if errors else 0
+
+
+            if __name__ == '__main__':
+                sys.exit(main())
+            CANDIDATE
+            chmod +x /tmp/meas/probe-identity.sh
+            printf 'env_id=%s image=%s\n' "${MEAS_ENV_ID}" "${MEAS_IMAGE}" \
+              > "/tmp/meas/${MEAS_ENV_ID}.log"
+
+  identify:
+    description: M-00 identity and marker readings, repeated for this stage.
+    parameters:
+      phase:
+        type: string
+    steps:
+      - run:
+          name: M-00 identity and marker (<< parameters.phase >>)
+          command: /tmp/meas/probe-identity.sh << parameters.phase >>
+
+  apt_prepare:
+    description: >
+      Consumer-side preparation for the plain distribution images, recorded as
+      consumer-side work and not as an Orb capability.
+    steps:
+      - run:
+          name: M-00b Consumer-side preparation (apt)
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            export DEBIAN_FRONTEND=noninteractive
+            require_obs "apt-update" apt-get update
+            require_obs "apt-install" apt-get install -y --no-install-recommends python3 python3-venv python3-pip git ca-certificates openssh-client
+            obs "apt-versions" dpkg-query -W -f '${Package} ${Version}\n' python3 python3-venv python3-pip git
+
+  candidate_gate:
+    description: Stop a candidate whose prepared base environment fails its role.
+    steps:
+      - run:
+          name: M-00c Enforce the candidate role
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            require_obs candidate-role python3 /tmp/meas/check-candidate.py
+            require_obs candidate-pip python3 -m pip --version
+            if [ "${MEAS_STAGE}" = m1 ] && [[ "${MEAS_ENV_ID}" =~ ^E0[345]$ ]]; then
+                obs_sh venv-packages-before-first-attempt "dpkg-query -W -f='\${binary:Package} \${db:Status-Status}\n' 'python3*-venv'"
+                if grep -q ' installed$' "${OBS_STDOUT}"; then
+                    stop 'a distribution venv package is already installed before M1-03'
+                elif [ "${OBS_STATUS}" -gt 1 ]; then
+                    stop 'could not inspect the distribution venv package state'
+                fi
+            fi
+
+  revision_gate:
+    description: Bind this checkout to the externally supplied approval values.
+    steps:
+      - run:
+          name: Check the approved experiment revision
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            printf '%s\n' "${PWD}" > /tmp/meas/repo_path
+            check_revision
+
+  store:
+    description: Upload the record. Runs even when an earlier step failed.
+    steps:
+      - store_artifacts:
+          path: /tmp/meas
+          destination: measurement-m2
+
+jobs:
+  m2:
+    description: >
+      #5545 cases M-00 and M2-01 to M2-07 for one candidate environment.
+    parameters:
+      env_id:
+        type: string
+      image:
+        type: string
+      apt:
+        type: boolean
+        default: false
     docker:
-      - image: cimg/python:3.14
+      - image: << parameters.image >>
     resource_class: small
     environment:
-      CIRCLE_TOKEN: dummy
-      CIRCLE_NO_TELEMETRY: "1"
-      CIRCLE_NO_UPDATE_CHECK: "1"
-  orb-pack:
-    docker:
-      - image: circleci/circleci-cli:1.11.0
-    resource_class: medium
-    environment:
-      CIRCLE_TOKEN: dummy
-      CIRCLE_NO_TELEMETRY: "1"
-      CIRCLE_NO_UPDATE_CHECK: "1"
-
-filters: &filters
-  tags:
-    only: /.*/
+      MEAS_STAGE: m2
+      MEAS_APPROVED_COMMIT: << pipeline.parameters.approved-commit >>
+      MEAS_APPROVED_CONFIG_SHA256: << pipeline.parameters.approved-config-sha256 >>
+      MEAS_PIPELINE_NUMBER: << pipeline.number >>
+      MEAS_ENV_ID: << parameters.env_id >>
+      MEAS_IMAGE: << parameters.image >>
+    steps:
+      - write_helper
+      - identify:
+          phase: before-preparation
+      - when:
+          condition: << parameters.apt >>
+          steps:
+            - apt_prepare
+            - identify:
+                phase: after-preparation
+      - candidate_gate
+      - checkout
+      - revision_gate
+      - run:
+          name: M2-00 Two virtual environments, fixtures and the runner
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            printf '%s\n' "${PWD}" > /tmp/meas/repo_path
+            note "M2-00: the preceding revision gate matched the approved commit and hash"
+            require_obs "venv-a-create" python3 -m venv /tmp/meas/venvA
+            require_obs "venv-a-install" /tmp/meas/venvA/bin/python -m pip install 'yamllint==1.38.0'
+            require_obs "venv-b-create" python3 -m venv /tmp/meas/venvB
+            require_obs "venv-b-install" /tmp/meas/venvB/bin/python -m pip install 'yamllint==1.37.1'
+            mkdir -p /tmp/meas/fixtures/tree /tmp/meas/fixtures/warnmany /tmp/meas/fixtures/errmany /tmp/meas/out
+            cp .yamllint /tmp/meas/fixtures/.yamllint
+            printf 'extends: relaxed\n' > /tmp/meas/fixtures/custom.yml
+            printf 'a: 1\n' > /tmp/meas/fixtures/tree/ok.yml
+            printf 'b:  2\n' > /tmp/meas/fixtures/tree/warn.yml
+            printf 'c: [1,\n' > /tmp/meas/fixtures/tree/broken.yml
+            printf 'extends: default\nrules:\n  line-length:\n    max: 20\n    level: warning\n' > /tmp/meas/fixtures/warn.cfg
+            LONG="$(printf 'a%.0s' $(seq 1 100))"
+            for i in $(seq 1 40); do
+                printf -- '---\nkey: %s\n' "${LONG}" > "/tmp/meas/fixtures/warnmany/w${i}.yml"
+                printf -- '---\nc: [1,\n' > "/tmp/meas/fixtures/errmany/e${i}.yml"
+            done
+            mkdir -p /tmp/meas/slim
+            ln -sf "$(command -v bash)" /tmp/meas/slim/bash
+            ln -sf /tmp/meas/venvA/bin/yamllint /tmp/meas/slim/yamllint
+            cat > /tmp/meas/run_exec.sh \<<'RUNNER'
+            #!/bin/bash
+            # Runs the baseline execute script with every PARAM_ exported.
+            # usage: run_exec.sh TARGETS OUTPUT_FILE CONFIG_FILE STRICT NO_WARNINGS LIST_FILES FORMAT
+            set -u
+            export PARAM_TARGETS="$1"
+            export PARAM_OUTPUT_FILE="$2"
+            export PARAM_CONFIG_FILE="$3"
+            export PARAM_CONFIG_DATA=""
+            export PARAM_STRICT="$4"
+            export PARAM_NO_WARNINGS="$5"
+            export PARAM_LIST_FILES="$6"
+            export PARAM_FORMAT="$7"
+            IFS= read -r MEAS_REPO_PATH < /tmp/meas/repo_path || exit 2
+            exec /bin/bash "${MEAS_REPO_PATH}/src/scripts/execute.sh"
+            RUNNER
+            cat > /tmp/meas/show_version.sh \<<'SHOW'
+            #!/bin/bash
+            set -u
+            IFS= read -r MEAS_REPO_PATH < /tmp/meas/repo_path || exit 2
+            exec /bin/bash "${MEAS_REPO_PATH}/src/scripts/show-version.sh"
+            SHOW
+            cat > /tmp/meas/run_limited.sh \<<'LIMITED'
+            #!/bin/bash
+            # Both streams pass through unlimited readers; preserve all bytes, not a tail.
+            # usage: run_limited.sh BLOCKS <run_exec.sh arguments>
+            set -u
+            blocks="$1"
+            shift
+            exec 3>&2
+            exec 4> >(cat >&3)
+            stderr_reader=$!
+            ( ulimit -f "${blocks}"; exec /tmp/meas/run_exec.sh "$@" ) 2>&4 | cat
+            statuses=("${PIPESTATUS[@]}")
+            exec 4>&-
+            reader_status=0
+            wait "${stderr_reader}" || reader_status=$?
+            exec 3>&-
+            printf '\norb_exit=%s stdout_reader_exit=%s stderr_reader_exit=%s\n' "${statuses[0]}" "${statuses[1]}" "${reader_status}" >&2
+            if [ "${statuses[0]}" -ne 0 ]; then
+                exit "${statuses[0]}"
+            fi
+            if [ "${statuses[1]}" -ne 0 ] || [ "${reader_status}" -ne 0 ]; then
+                exit 2
+            fi
+            exit 0
+            LIMITED
+            cat > /tmp/meas/bash_env.sh \<<'BASHENV'
+            #!/bin/bash
+            # Reads BASH_ENV without ever printing its content, because a project
+            # environment variable in it could be a credential. shape prints only
+            # size and a hash prefix; remember stores the pre-append size and hash;
+            # verify re-hashes exactly those bytes to show whether they survived.
+            set -u
+            action="$1"
+            file="${BASH_ENV:-}"
+            if [ -z "${file}" ] || [ ! -f "${file}" ]; then
+                printf 'BASH_ENV file absent\n'
+                [ "${action}" = "remember" ] && printf '0\n' > /tmp/meas/be_bytes
+                [ "${action}" = "remember" ] && printf 'none\n' > /tmp/meas/be_hash
+                exit 0
+            fi
+            bytes="$(wc -c < "${file}")"
+            lines="$(wc -l < "${file}")"
+            hash="$(sha256sum < "${file}" | cut -d' ' -f1)"
+            case "${action}" in
+                shape)
+                    printf 'bytes=%s lines=%s sha256_prefix=%.12s\n' "${bytes}" "${lines}" "${hash}"
+                    ;;
+                remember)
+                    printf '%s\n' "${bytes}" > /tmp/meas/be_bytes
+                    printf '%s\n' "${hash}" > /tmp/meas/be_hash
+                    printf 'remembered bytes=%s sha256_prefix=%.12s\n' "${bytes}" "${hash}"
+                    ;;
+                verify)
+                    want="$(cat /tmp/meas/be_bytes)"
+                    expected="$(cat /tmp/meas/be_hash)"
+                    if [ "${want}" = "0" ]; then
+                        printf 'no pre-existing content to compare; current bytes=%s\n' "${bytes}"
+                        exit 0
+                    fi
+                    now="$(head -c "${want}" "${file}" | sha256sum | cut -d' ' -f1)"
+                    if [ "${expected}" = "${now}" ]; then
+                        printf 'pre-existing %s bytes unchanged; current bytes=%s\n' "${want}" "${bytes}"
+                    else
+                        printf 'pre-existing %s bytes CHANGED; current bytes=%s\n' "${want}" "${bytes}"
+                    fi
+                    ;;
+                *)
+                    printf 'unknown action %s\n' "${action}"
+                    exit 2
+                    ;;
+            esac
+            BASHENV
+            chmod +x /tmp/meas/run_exec.sh /tmp/meas/show_version.sh /tmp/meas/run_limited.sh /tmp/meas/bash_env.sh
+            obs_sh "slim-bin" 'ls -l /tmp/meas/slim'
+            obs_sh "fixture-sizes" 'du -sh /tmp/meas/fixtures/warnmany /tmp/meas/fixtures/errmany'
+      - run:
+          name: M2-01a Explicit handoff, producing step
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            printf '/tmp/meas/venvA\n' > /tmp/meas/venv_path
+            obs "producer-same-step" /tmp/meas/venvA/bin/yamllint --version
+            obs_sh "producer-path" 'printf "PATH=%s\n" "$PATH"'
+      - run:
+          name: M2-01b Explicit handoff, separate consuming step
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            note "a different shell from M2-01a; nothing was exported to it"
+            VENV="$(cat /tmp/meas/venv_path)"
+            obs_sh "consumer-path" 'printf "PATH=%s\n" "$PATH"'
+            obs_sh "consumer-inherited" 'command -v yamllint || echo ABSENT'
+            obs "consumer-explicit-version" "${VENV}/bin/yamllint" --version
+            cd /tmp/meas/fixtures
+            obs_sh "consumer-explicit-listing" "${VENV}/bin/yamllint --list-files . | sort"
+            obs "consumer-explicit-lint" "${VENV}/bin/yamllint" tree/ok.yml
+      - run:
+          name: M2-01c A consumer's own step changes PATH first
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            obs_sh "after-consumer-path-change-resolved" 'export PATH=/tmp/meas/venvB/bin:$PATH; command -v yamllint && yamllint --version'
+            obs_sh "after-consumer-path-change-explicit" 'export PATH=/tmp/meas/venvB/bin:$PATH; /tmp/meas/venvA/bin/yamllint --version'
+      - run:
+          name: M2-02a BASH_ENV handoff, appending step
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            obs_sh "bash-env-name" 'printf "BASH_ENV=%s\n" "${BASH_ENV:-UNSET}"'
+            note "the file content is never printed; a project variable in it could be a credential"
+            obs "bash-env-remember" /tmp/meas/bash_env.sh remember
+            printf 'export MEAS_MARKER_KEPT=1\n' >> "${BASH_ENV}"
+            printf 'export PATH=/tmp/meas/venvA/bin:$PATH\n' >> "${BASH_ENV}"
+            obs "bash-env-after-append" /tmp/meas/bash_env.sh shape
+      - run:
+          name: M2-02b BASH_ENV handoff, later step
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            obs_sh "bash-env-later-path" 'printf "PATH=%s\n" "$PATH"'
+            obs_sh "bash-env-later-resolve" 'command -v yamllint && yamllint --version'
+            obs_sh "bash-env-marker-kept" 'printf "MEAS_MARKER_KEPT=%s\n" "${MEAS_MARKER_KEPT:-UNSET}"'
+            note "survival is judged by re-hashing the remembered byte range, not by reading it"
+            obs "bash-env-prefix-unchanged" /tmp/meas/bash_env.sh verify
+            obs "bash-env-shape-now" /tmp/meas/bash_env.sh shape
+      - run:
+          name: M2-02c BASH_ENV value, text or instruction, and a second append
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            note "benign substitution marker; records whether a value is evaluated"
+            printf 'export MEAS_VALUE=%s\n' '/tmp/meas/A$(echo INJECTED)B' >> "${BASH_ENV}"
+            printf "export MEAS_VALUE_QUOTED='%s'\n" '/tmp/meas/A$(echo INJECTED)B' >> "${BASH_ENV}"
+            printf 'export PATH=/tmp/meas/venvB/bin:$PATH\n' >> "${BASH_ENV}"
+            obs "bash-env-second-append" /tmp/meas/bash_env.sh shape
+      - run:
+          name: M2-02d BASH_ENV after the second append
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            obs_sh "value-unquoted" 'printf "MEAS_VALUE=%s\n" "${MEAS_VALUE:-UNSET}"'
+            obs_sh "value-quoted" 'printf "MEAS_VALUE_QUOTED=%s\n" "${MEAS_VALUE_QUOTED:-UNSET}"'
+            obs_sh "path-after-two-appends" 'printf "PATH=%s\n" "$PATH"'
+            obs_sh "resolve-after-two-appends" 'command -v yamllint && yamllint --version'
+      - run:
+          name: M2-03 Display, lint and listing targets
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            cd /tmp/meas/fixtures
+            note "venvB is earlier on PATH than venvA in the next two readings"
+            obs_sh "show-version-script" '
+                export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH
+                /tmp/meas/show_version.sh
+                status=$?
+                printf "resolved=%s\n" "$(command -v yamllint)"
+                exit "${status}"
+            '
+            obs_sh "execute-script-listing" 'export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH; /tmp/meas/run_exec.sh "." "" "" false false true "" | sort'
+            obs_sh "execute-script-lint" 'export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH; /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""'
+            obs "selected-a-module-file" /tmp/meas/venvA/bin/python -c 'import yamllint; print(yamllint.__file__, yamllint.APP_VERSION)'
+            obs "selected-a-module-launch" /tmp/meas/venvA/bin/python -m yamllint --version
+            obs "selected-b-module-launch" /tmp/meas/venvB/bin/python -m yamllint --version
+            obs_sh "destination-not-on-path" 'export PATH=/usr/bin:/bin; printf "resolved=%s\n" "$(command -v yamllint || echo ABSENT)"; yamllint --version'
+            obs_sh "base-module-launch" 'python3 -m yamllint --version'
+      - run:
+          name: M2-04 Who can judge placement
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            cd /tmp/meas/fixtures
+            note "installation receives only version; it never sees targets"
+            obs_sh "install-inputs" 'grep -n "PARAM_" "$(cat /tmp/meas/repo_path)/src/commands/install.yml"'
+            obs_sh "execute-inputs" 'grep -n "PARAM_" "$(cat /tmp/meas/repo_path)/src/commands/execute.yml"'
+            export PATH="/tmp/meas/venvA/bin:${PATH}"
+            obs "out-inside-target-dir" /tmp/meas/run_exec.sh "tree" "tree/report.txt" "" false false false ""
+            obs "out-equal-target-file" /tmp/meas/run_exec.sh "tree/ok.yml" "tree/ok.yml" "" false false false ""
+            obs "out-equal-config-file" /tmp/meas/run_exec.sh "tree" "custom.yml" "custom.yml" false false false ""
+            obs "out-parent-missing" /tmp/meas/run_exec.sh "tree" "/tmp/meas/absent/report.txt" "" false false false ""
+            obs "out-already-exists" /tmp/meas/run_exec.sh "tree" "/tmp/meas/fixtures/custom.yml" "" false false false ""
+            obs "out-parent-not-a-directory" /tmp/meas/run_exec.sh "tree" "custom.yml/report.txt" "" false false false ""
+            obs "out-dotdot" /tmp/meas/run_exec.sh "tree" "/tmp/meas/out/../out/dotdot.txt" "" false false false ""
+            obs "out-outside-targets" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/report-ok.txt" "" false false false ""
+            obs_sh "out-listing" 'ls -l /tmp/meas/out'
+      - run:
+          name: M2-05 Interpreter used for saving
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            cd /tmp/meas/fixtures
+            note "M2-05 controls unset BASH_ENV so earlier handoff appends cannot restore python3"
+            obs_sh "helper-contract" 'grep -n "command -v python3\|python3 -I\|^import " "$(cat /tmp/meas/repo_path)/src/scripts/execute.sh"'
+            obs "save-with-path-python3" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:${PATH}" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/base.txt" "" false false false ""
+            obs "save-without-python3" env -u BASH_ENV PATH="/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/nopy.txt" "" false false false ""
+            obs "save-with-only-venv-python3" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/venvpy.txt" "" false false false ""
+            obs "save-disabled-without-python3" env -u BASH_ENV PATH="/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""
+            obs "venv-helper-modules" /tmp/meas/venvA/bin/python -I -c 'import os, select, stat, sys; print("modules ok")'
+            printf 'raise SystemExit("LOCAL select.py WAS IMPORTED")\n' > /tmp/meas/fixtures/select.py
+            obs "save-with-local-select" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:${PATH}" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/isolated.txt" "" false false false ""
+            obs "isolation-without-I" /tmp/meas/venvA/bin/python -c 'import select; print(getattr(select, "__file__", "<built-in>"))'
+            obs "isolation-with-I" /tmp/meas/venvA/bin/python -I -c 'import select; print(getattr(select, "__file__", "<built-in>"))'
+            rm -f /tmp/meas/fixtures/select.py
+            obs_sh "saved-files" 'ls -l /tmp/meas/out'
+      - run:
+          name: M2-06 Output contract and exit status priority
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            cd /tmp/meas/fixtures
+            export PATH="/tmp/meas/venvA/bin:${PATH}"
+            obs "clean-save-disabled" /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""
+            obs "clean-save-enabled" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/clean.txt" "" false false false ""
+            obs "lint-error-save-enabled" /tmp/meas/run_exec.sh "tree/broken.yml" "/tmp/meas/out/error.txt" "" false false false ""
+            obs "warning-only-not-strict" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/warn.txt" "" false false false ""
+            obs "warning-only-strict" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/strict.txt" "" true false false ""
+            obs "warning-only-strict-no-warnings" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/strictnw.txt" "" true true false ""
+            obs "collision-refused" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/clean.txt" "" false false false ""
+            obs_sh "saved-bytes" 'ls -l /tmp/meas/out'
+            obs_sh "saved-heads" 'for f in /tmp/meas/out/*.txt; do printf "== %s\n" "$f"; head -c 400 "$f"; printf "\n"; done'
+            note "a root default user is not refused by file permissions, so the"
+            note "unwritable-parent reading applies only where id -u is not 0"
+            mkdir -p /tmp/meas/ro
+            chmod 500 /tmp/meas/ro
+            obs "current-uid" id -u
+            obs "unwritable-parent" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/ro/report.txt" "" false false false ""
+            note "the next four readings separate the lint status from a save failure"
+            note "that happens while the result is being written, using the RLIMIT_FSIZE"
+            note "fault the repository already uses in .circleci/test-output-file.py;"
+            note "that limit applies to root as well, so every candidate can run it"
+            obs "control-lint-ok-many-warnings" /tmp/meas/run_exec.sh "warnmany" "/tmp/meas/out/warnmany.txt" "warn.cfg" false false false ""
+            obs "control-lint-error-many" /tmp/meas/run_exec.sh "errmany" "/tmp/meas/out/errmany.txt" "" false false false ""
+            obs "save-fails-after-lint-ok" /tmp/meas/run_limited.sh 1 "warnmany" "/tmp/meas/out/limited-ok.txt" "warn.cfg" false false false ""
+            obs "save-fails-after-lint-error" /tmp/meas/run_limited.sh 1 "errmany" "/tmp/meas/out/limited-err.txt" "" false false false ""
+            obs_sh "limited-results-absent" 'ls -l /tmp/meas/out/limited-ok.txt /tmp/meas/out/limited-err.txt 2>&1'
+            obs_sh "temporary-files-left" 'ls -a /tmp/meas/out | grep yamllint-orb-output- || echo "no temporary file left behind"'
+      - run:
+          name: M2-07 Failure codes, diagnostics and limits
+          command: |
+            set -euo pipefail
+            source /tmp/meas/obs.sh
+            obs_sh "main-not-touched" 'cd "$(cat /tmp/meas/repo_path)" && git status --porcelain && git diff --stat'
+            show_index
+      - store
 
 workflows:
-  lint-pack:
+  measure-m2:
+    when:
+      and:
+        - not:
+            equal: ["", << pipeline.parameters.approved-commit >>]
+        - not:
+            equal: ["", << pipeline.parameters.approved-config-sha256 >>]
     jobs:
-      - orb-tools/lint:
-          filters: *filters
-      - orb-tools/pack:
-          executor: orb-pack
-          filters: *filters
-      - orb-tools/review:
-          orb_name: yamllint
-          filters: *filters
-      - shellcheck/check:
-          filters: *filters
-      # Verify and expand the inline config before continuing with that exact file.
-      - orb-tools/continue:
-          pipeline_number: << pipeline.number >>
-          vcs_type: << pipeline.project.type >>
-          orb_name: yamllint
-          executor: config-verifier
-          checkout: false
-          attach_workspace: false
-          inject_orb: false
-          config_path: /tmp/yamllint-phase5/injected.yml
-          pre-steps:
-            - checkout
-            - attach_workspace:
-                at: /tmp/yamllint-phase5-packed
-            - run:
-                name: Install configuration verifier dependency
-                command: python -m pip install 'PyYAML==6.0.3'
-            - run:
-                name: Verify source, packed Orb, expanded config and release boundary
-                command: bash .circleci/prepare-ci-contract.sh /tmp/yamllint-phase5-packed/orb_source.tar.gz
-            - store_artifacts:
-                path: /tmp/yamllint-phase5
-                destination: phase5-config
+      # The manually triggered pipeline waits here until a person
+      # approves this hold in the CircleCI UI. That keeps the start of the
+      # measurement separate from the push and gives it its own timestamp.
+      # The approval in section 11.1 of the plan remains the authoritative one.
+      - hold-until-approved:
+          type: approval
+      - m2:
+          name: m2-E01-cimg-py314
+          env_id: E01
+          image: cimg/python:3.14
           requires:
-            - orb-tools/lint
-            - orb-tools/pack
-            - orb-tools/review
-            - shellcheck/check
-          filters: *filters
+            - hold-until-approved
+      - m2:
+          name: m2-E02-cimg-py313
+          env_id: E02
+          image: cimg/python:3.13
+          requires:
+            - hold-until-approved
+      - m2:
+          name: m2-E03-ubuntu-2204
+          env_id: E03
+          image: ubuntu:22.04
+          apt: true
+          requires:
+            - hold-until-approved
+      - m2:
+          name: m2-E04-ubuntu-2404
+          env_id: E04
+          image: ubuntu:24.04
+          apt: true
+          requires:
+            - hold-until-approved
