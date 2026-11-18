@@ -549,8 +549,8 @@ a temporary experiment mechanism is stated in each case above.
 
 ## 8. H9 execution conditions
 
-For the additional run following #172, the proposed delta and approval fields
-are in section 11.1 under “Proposed M2 supplementary run after pipeline 172”.
+For the additional run following #172, section 11.1 records the approval
+under “M2 supplementary run after pipeline 172”.
 
 | Item | Condition |
 | --- | --- |
@@ -836,29 +836,37 @@ run-start time. Both hold approval and measurement start must be later
 than this approval. #5543's prior completion remains historical evidence;
 no completion checkbox or measured result is established by this recovery.
 
-#### Proposed M2 supplementary run after pipeline 172
+#### M2 supplementary run after pipeline 172
 
-This proposal is scoped to the additional cases in section 6. It follows
+The approval covers one run of the additional cases in section 6. It follows
 pipeline 172 on the existing experiment branch. The four candidate checks,
 small resource class, existing human operator, retention and human hold
 from section 8 apply. The drafting and local verification of this supplement
 and the review edits to the #172 record were prepared by ChatGPT Work. The
 human performs the branch push, remote verification, pipeline start, hold
 approval and final review. Claude's initial record and the review amendment
-are identified in the #172 measurement record. Record approval here before
-the experiment push and start.
+are identified in the #172 measurement record.
 
-| Item | Proposed value |
+| Item | Recorded value |
 | --- | --- |
+| Approved proposal commit | `4c6a9f219f64ad1e89c420a67dd96cda209a75d7` |
 | Original H9 plan on main for #172 | `b49d6dfdbd14feb98cfc19e52ed99a912f0f739b` |
 | Original experiment and SHA-256 for #171/#172 | `ebd63fd1426dab201f5190b7e337e65eed09ca5a` / `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375` |
 | Reviewed #172 record commit | `7fe29ca67cb4f2e3620ca15228fa9cc4dda7602f`, `.circleci/MEASUREMENT_V2_3_0_M2.md` |
 | Supplement branch and experiment commit | `exp/230-m2` / `be97f874b99fd99582ae15434011910741c53200`, direct child of the original experiment |
 | Supplement configuration SHA-256 | `b7b030636692e34f342a2d30c0df2c4a1720b7b097a88c439703a755c07a1512` |
-| Scope for approval | One further parameterised measurement workflow, with actual hold and start times recorded afterwards. E01, E02, E03 and E04, four small compute jobs and one approval hold. The concrete cases are in the “M2 supplement after pipeline 172” table. |
-| Human approval and time, including time zone | **Pending.** Record the decision, approver and time, with the exact proposal revision and experiment SHA/hash, before starting the supplement. |
-| Plan commit used for execution | Record the merged plan commit and its relation to the approved proposal in the new run record. |
+| Approved scope | One further parameterised measurement workflow, with actual hold and start times recorded afterwards. E01, E02, E03 and E04, four small compute jobs and one approval hold. The concrete cases are in the “M2 supplement after pipeline 172” table. |
+| Human approval and time, including time zone | Approved by the human project owner (Redmine user ID 3). Approval received on 2026-11-18 at 23:30 JST (UTC+09:00). |
+| Plan commit used for execution | Pending merge to main. Enter the actual main SHA and its relation to the approved proposal in the supplementary run record. |
 | New pipeline, hold and start | Pending execution. Capture the actual pipeline/workflow, account identifier of the hold, its completion and first compute start in JST. |
+
+The human replied “実行してください” to the request to run this one
+supplement with the proposal commit, experiment SHA, configuration hash
+and job scope above, and to enter its approval time in section 11.1. The
+approval receipt clock read 2026-11-18 23:30:48 JST
+(2026-11-18T14:30:48Z). The recorded minute refers to receipt; the
+conversation platform's exact posting time was unavailable. The CircleCI
+hold and first compute start have their own later timestamps.
 
 Push through the normal local → Git server → GitHub route. The branch update
 is a fast-forward from the original experiment. After propagation, verify
