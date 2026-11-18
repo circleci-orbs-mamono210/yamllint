@@ -505,6 +505,30 @@ subject line and the configuration hash, and they are compared with the
 - Judgment: #5545 C6 and C7 can be read from this table, and the limits
   passed to D07 and D08 are explicit.
 
+### M2 supplement after pipeline 172
+
+The four E01–E04 jobs in pipeline 172 completed. Section 12 of the M2 record
+identifies missing comparisons. Its raw exit values, commands and streams
+remain assigned to that pipeline. For the supplement, report each observation
+by its own pipeline, job, candidate and case. Reuse the recorded C4 placement
+evidence and the earlier reproduction of the quoting boundary.
+
+| Condition | Additional comparison | Evidence to retain |
+| --- | --- | --- |
+| C2 | The producer writes the absolute path to A to a file. A new CircleCI run step reads it. An intervening user step exports B on PATH and calls A, B and A explicitly. The next fresh shell records the default resolver. A separate user step also persists a harmless marker and B via BASH_ENV before the experiment appends A and then B in later steps. | Actual step-shell PATH, selected CLI and Python, explicit and ordinary versions, warning/error fixture lint and listing. Hash the consumer-supplied prefix before the experimental appends, then compare the exact byte range and marker after each append. Record whether a native file existed before the controlled user step. Never log or archive the file itself. |
+| C3 / D05 | Record the base interpreter before installing either venv. Invoke that interpreter and both venv interpreters by absolute path for module identity and module launch. Run the original show, lint and listing scripts with A first, B first, the captured base PATH, and with the CLI absent. | Per successful console-script invocation in the A/B cases, record its argv[0], resolved CLI path, Python executable, prefix, module file and version from the running Python process. Take the same trace if the base PATH resolves a CLI. Repeat the traced A/B commands without instrumentation and compare status/stdout/stderr. |
+| C5 / D05 | Keep the linter fixed to A. Select either python3 on the original base PATH or A's python3 for the baseline save helper. Use a fresh output path for every call. Also run without any python3 on PATH, saving both on and off. | For prepare/forward/finalize record the PATH lookup, actual interpreter and prefix, isolated flag and four module origins within the running helper. Preserve the original -I option. Compare instrumented and uninstrumented status/streams/saved bytes. Retain the ordinary and isolated local-select.py import readings and the built-in-select limitation. |
+| C6 / D07 | For clean, error, warning-only, strict warning, hidden warning without strict, and strict hidden warning, run the baseline script with saving off/on. Repeat the large warning/error write-failure controls under known A. Run the real show, lint and listing scripts without a CLI, including with saving enabled and with existing invalid inputs. Separately try nonexistent explicit CLI/Python destinations with B still available on PATH. | Both streams, Orb process status, saved bytes, temporary-file inventory, and first diagnostic. Explicit-path selection refusals belong to the comparison runner. The existing Orb has no new environment selector. Captured subprocess failures do not establish the final status of a CircleCI step. |
+
+Controlled C3/C5/C6 subprocesses restore the PATH captured before handoff
+and remove BASH_ENV from their environment before starting Bash. The C2
+steps retain CircleCI's actual BASH_ENV. The CLI probe writes a JSON sidecar
+from the actual console process. For C5 a measurement-only shim inserts a
+small recording prelude before the unchanged helper body in the same isolated
+Python process. An uninstrumented control exercises the original scripts for
+each interpreter. If identities, trace events or controls disagree, preserve
+the raw evidence and record the limit before making an inference.
+
 ## 7. H2 and H7 planning issues
 
 Recorded here because they change what is measured. They are not decided
@@ -524,6 +548,9 @@ and not a proposed Orb input. The distinction between a compared method and
 a temporary experiment mechanism is stated in each case above.
 
 ## 8. H9 execution conditions
+
+For the additional run following #172, the proposed delta and approval fields
+are in section 11.1 under “Proposed M2 supplementary run after pipeline 172”.
 
 | Item | Condition |
 | --- | --- |
@@ -808,6 +835,41 @@ approval, pipeline revision, configuration hash, hold approval and actual
 run-start time. Both hold approval and measurement start must be later
 than this approval. #5543's prior completion remains historical evidence;
 no completion checkbox or measured result is established by this recovery.
+
+#### Proposed M2 supplementary run after pipeline 172
+
+This proposal is scoped to the additional cases in section 6. It follows
+pipeline 172 on the existing experiment branch. The four candidate checks,
+small resource class, existing human operator, retention and human hold
+from section 8 apply. The drafting and local verification of this supplement
+and the review edits to the #172 record were prepared by ChatGPT Work. The
+human performs the branch push, remote verification, pipeline start, hold
+approval and final review. Claude's initial record and the review amendment
+are identified in the #172 measurement record. Record approval here before
+the experiment push and start.
+
+| Item | Proposed value |
+| --- | --- |
+| Original H9 plan on main for #172 | `b49d6dfdbd14feb98cfc19e52ed99a912f0f739b` |
+| Original experiment and SHA-256 for #171/#172 | `ebd63fd1426dab201f5190b7e337e65eed09ca5a` / `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375` |
+| Reviewed #172 record commit | `7fe29ca67cb4f2e3620ca15228fa9cc4dda7602f`, `.circleci/MEASUREMENT_V2_3_0_M2.md` |
+| Supplement branch and experiment commit | `exp/230-m2` / `be97f874b99fd99582ae15434011910741c53200`, direct child of the original experiment |
+| Supplement configuration SHA-256 | `b7b030636692e34f342a2d30c0df2c4a1720b7b097a88c439703a755c07a1512` |
+| Scope for approval | One further parameterised measurement workflow, with actual hold and start times recorded afterwards. E01, E02, E03 and E04, four small compute jobs and one approval hold. The concrete cases are in the “M2 supplement after pipeline 172” table. |
+| Human approval and time, including time zone | **Pending.** Record the decision, approver and time, with the exact proposal revision and experiment SHA/hash, before starting the supplement. |
+| Plan commit used for execution | Record the merged plan commit and its relation to the approved proposal in the new run record. |
+| New pipeline, hold and start | Pending execution. Capture the actual pipeline/workflow, account identifier of the hold, its completion and first compute start in JST. |
+
+Push through the normal local → Git server → GitHub route. The branch update
+is a fast-forward from the original experiment. After propagation, verify
+the full remote SHA and the SHA-256 of the configuration at that SHA. Copy
+both approved values to the two pipeline parameters from section 8. The empty
+default selects no workflow. Collect each candidate's compressed evidence
+and its SHA-256 from `measurement-m2-supplement` on the same day; verify the
+outer archive hash and its internal `SHA256SUMS`. Record the result separately
+from #172 before deciding C7. A changed configuration or experiment commit
+requires its own approval. The prior #5543 and #5544 decisions remain
+historical inputs to this measurement.
 
 ### 11.2 Runs, recorded afterwards by #5544 and #5545
 
