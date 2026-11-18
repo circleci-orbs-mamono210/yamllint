@@ -1,5 +1,5 @@
 ---
-# Temporary measurement configuration for Redmine #5545.
+# Supplement to pipeline 172 for Redmine #5545. See section 11.1 on main.
 #
 # v2.3.0 Phase 1 design investigation. Plan: .circleci/MEASUREMENT_PLAN_V2_3_0.md
 # on main (#5543). This file belongs ONLY on the throwaway branch exp/230-m2,
@@ -265,13 +265,13 @@ commands:
     description: Upload the record. Runs even when an earlier step failed.
     steps:
       - store_artifacts:
-          path: /tmp/meas
-          destination: measurement-m2
+          path: /tmp/m2-artifacts
+          destination: measurement-m2-supplement
 
 jobs:
   m2:
     description: >
-      #5545 cases M-00 and M2-01 to M2-07 for one candidate environment.
+      #5545 supplementary run. C2/C3/C5/C6 after pipeline 172.
     parameters:
       env_id:
         type: string
@@ -292,6 +292,14 @@ jobs:
       MEAS_IMAGE: << parameters.image >>
     steps:
       - write_helper
+      - run:
+          name: Validate approval parameter format before candidate preparation
+          command: |
+            set -eu
+            [[ "$MEAS_APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ && "$MEAS_APPROVED_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+              echo 'Invalid approval parameters. Copy the two recorded lowercase hex values without whitespace.' >&2
+              exit 1
+            }
       - identify:
           phase: before-preparation
       - when:
@@ -304,301 +312,473 @@ jobs:
       - checkout
       - revision_gate
       - run:
-          name: M2-00 Two virtual environments, fixtures and the runner
+          name: S0 Prepare both environments and record the base before handoff
           command: |
             set -euo pipefail
+            mkdir -p /tmp/m2-work/tracer /tmp/m2-work/save-wrapper
+            cat > /tmp/m2-work/shared.sh \<<'M2_FILE'
+            # Sourced by the actual CircleCI step shell and by controlled subprocesses.
+            set -euo pipefail
             source /tmp/meas/obs.sh
-            printf '%s\n' "${PWD}" > /tmp/meas/repo_path
-            note "M2-00: the preceding revision gate matched the approved commit and hash"
-            require_obs "venv-a-create" python3 -m venv /tmp/meas/venvA
-            require_obs "venv-a-install" /tmp/meas/venvA/bin/python -m pip install 'yamllint==1.38.0'
-            require_obs "venv-b-create" python3 -m venv /tmp/meas/venvB
-            require_obs "venv-b-install" /tmp/meas/venvB/bin/python -m pip install 'yamllint==1.37.1'
-            mkdir -p /tmp/meas/fixtures/tree /tmp/meas/fixtures/warnmany /tmp/meas/fixtures/errmany /tmp/meas/out
-            cp .yamllint /tmp/meas/fixtures/.yamllint
-            printf 'extends: relaxed\n' > /tmp/meas/fixtures/custom.yml
-            printf 'a: 1\n' > /tmp/meas/fixtures/tree/ok.yml
-            printf 'b:  2\n' > /tmp/meas/fixtures/tree/warn.yml
-            printf 'c: [1,\n' > /tmp/meas/fixtures/tree/broken.yml
-            printf 'extends: default\nrules:\n  line-length:\n    max: 20\n    level: warning\n' > /tmp/meas/fixtures/warn.cfg
-            LONG="$(printf 'a%.0s' $(seq 1 100))"
-            for i in $(seq 1 40); do
-                printf -- '---\nkey: %s\n' "${LONG}" > "/tmp/meas/fixtures/warnmany/w${i}.yml"
-                printf -- '---\nc: [1,\n' > "/tmp/meas/fixtures/errmany/e${i}.yml"
-            done
-            mkdir -p /tmp/meas/slim
-            ln -sf "$(command -v bash)" /tmp/meas/slim/bash
-            ln -sf /tmp/meas/venvA/bin/yamllint /tmp/meas/slim/yamllint
-            cat > /tmp/meas/run_exec.sh \<<'RUNNER'
+            W=/tmp/m2-work
+            A=$W/A
+            B=$W/B
+            FIX=$W/fixtures
+            OUT=/tmp/meas/saved
+            TRACE=/tmp/meas/traces
+            IFS= read -r REPO < /tmp/meas/repo_path
+
+            # These builtins run in the calling shell. No dump of the environment or BASH_ENV.
+            shell_view() {
+                local cli python
+                cli=$(type -P yamllint) || cli=ABSENT
+                python=$(type -P python3) || python=ABSENT
+                printf 'yamllint=%s\npython3=%s\nPATH=%s\nconsumer_marker=%s\n' \
+                    "$cli" "$python" "$PATH" "${M2_USER_MARK:-absent}"
+            }
+            prefix_snapshot() {
+                wc -c < "$BASH_ENV" > "$W/user-prefix.size"
+                sha256sum < "$BASH_ENV" | cut -d' ' -f1 > "$W/user-prefix.hash"
+                printf 'controlled consumer prefix includes %s bytes\n' "$(< "$W/user-prefix.size")"
+            }
+            prefix_check() {
+                local bytes digest
+                bytes=$(< "$W/user-prefix.size")
+                digest=$(head -c "$bytes" "$BASH_ENV" | sha256sum | cut -d' ' -f1)
+                if [[ $digest == "$(< "$W/user-prefix.hash")" ]]; then
+                    printf 'original %s bytes match\n' "$bytes"
+                else
+                    printf 'original %s bytes differ\n' "$bytes"
+                    return 1
+                fi
+                [[ ${M2_USER_MARK:-} == consumer-r1 ]]
+            }
+            M2_FILE
+            cat > /tmp/m2-work/cases.sh \<<'M2_FILE'
             #!/bin/bash
-            # Runs the baseline execute script with every PARAM_ exported.
-            # usage: run_exec.sh TARGETS OUTPUT_FILE CONFIG_FILE STRICT NO_WARNINGS LIST_FILES FORMAT
-            set -u
-            export PARAM_TARGETS="$1"
-            export PARAM_OUTPUT_FILE="$2"
-            export PARAM_CONFIG_FILE="$3"
-            export PARAM_CONFIG_DATA=""
-            export PARAM_STRICT="$4"
-            export PARAM_NO_WARNINGS="$5"
-            export PARAM_LIST_FILES="$6"
-            export PARAM_FORMAT="$7"
-            IFS= read -r MEAS_REPO_PATH < /tmp/meas/repo_path || exit 2
-            exec /bin/bash "${MEAS_REPO_PATH}/src/scripts/execute.sh"
-            RUNNER
-            cat > /tmp/meas/show_version.sh \<<'SHOW'
-            #!/bin/bash
-            set -u
-            IFS= read -r MEAS_REPO_PATH < /tmp/meas/repo_path || exit 2
-            exec /bin/bash "${MEAS_REPO_PATH}/src/scripts/show-version.sh"
-            SHOW
-            cat > /tmp/meas/run_limited.sh \<<'LIMITED'
-            #!/bin/bash
-            # Both streams pass through unlimited readers; preserve all bytes, not a tail.
-            # usage: run_limited.sh BLOCKS <run_exec.sh arguments>
-            set -u
-            blocks="$1"
-            shift
-            exec 3>&2
-            exec 4> >(cat >&3)
-            stderr_reader=$!
-            ( ulimit -f "${blocks}"; exec /tmp/meas/run_exec.sh "$@" ) 2>&4 | cat
-            statuses=("${PIPESTATUS[@]}")
-            exec 4>&-
-            reader_status=0
-            wait "${stderr_reader}" || reader_status=$?
-            exec 3>&-
-            printf '\norb_exit=%s stdout_reader_exit=%s stderr_reader_exit=%s\n' "${statuses[0]}" "${statuses[1]}" "${reader_status}" >&2
-            if [ "${statuses[0]}" -ne 0 ]; then
-                exit "${statuses[0]}"
-            fi
-            if [ "${statuses[1]}" -ne 0 ] || [ "${reader_status}" -ne 0 ]; then
-                exit 2
-            fi
-            exit 0
-            LIMITED
-            cat > /tmp/meas/bash_env.sh \<<'BASHENV'
-            #!/bin/bash
-            # Reads BASH_ENV without ever printing its content, because a project
-            # environment variable in it could be a credential. shape prints only
-            # size and a hash prefix; remember stores the pre-append size and hash;
-            # verify re-hashes exactly those bytes to show whether they survived.
-            set -u
-            action="$1"
-            file="${BASH_ENV:-}"
-            if [ -z "${file}" ] || [ ! -f "${file}" ]; then
-                printf 'BASH_ENV file absent\n'
-                [ "${action}" = "remember" ] && printf '0\n' > /tmp/meas/be_bytes
-                [ "${action}" = "remember" ] && printf 'none\n' > /tmp/meas/be_hash
-                exit 0
-            fi
-            bytes="$(wc -c < "${file}")"
-            lines="$(wc -l < "${file}")"
-            hash="$(sha256sum < "${file}" | cut -d' ' -f1)"
-            case "${action}" in
-                shape)
-                    printf 'bytes=%s lines=%s sha256_prefix=%.12s\n' "${bytes}" "${lines}" "${hash}"
-                    ;;
-                remember)
-                    printf '%s\n' "${bytes}" > /tmp/meas/be_bytes
-                    printf '%s\n' "${hash}" > /tmp/meas/be_hash
-                    printf 'remembered bytes=%s sha256_prefix=%.12s\n' "${bytes}" "${hash}"
-                    ;;
-                verify)
-                    want="$(cat /tmp/meas/be_bytes)"
-                    expected="$(cat /tmp/meas/be_hash)"
-                    if [ "${want}" = "0" ]; then
-                        printf 'no pre-existing content to compare; current bytes=%s\n' "${bytes}"
-                        exit 0
-                    fi
-                    now="$(head -c "${want}" "${file}" | sha256sum | cut -d' ' -f1)"
-                    if [ "${expected}" = "${now}" ]; then
-                        printf 'pre-existing %s bytes unchanged; current bytes=%s\n' "${want}" "${bytes}"
+            source /tmp/m2-work/shared.sh
+            cd "$FIX"
+            BASE=$(< "$W/base-python")
+            BASE_PATH=$(< "$W/base-path")
+            export PARAM_CONFIG_FILE="$FIX/warn.cfg" PARAM_CONFIG_DATA="" PARAM_FORMAT=parsable
+            export PARAM_STRICT=false PARAM_LIST_FILES=false PARAM_NO_WARNINGS=false PARAM_OUTPUT_FILE=""
+            export PARAM_TARGETS="tree/ok.yml"
+            run_path() {
+                local id=$1 path=$2 script=$3
+                shift 3
+                obs "$id" /usr/bin/env "PATH=$path" "$@" /bin/bash "$REPO/src/scripts/$script.sh"
+            }
+            show_trace() {
+                local label=$1
+                require_obs "$label-trace" cat "$TRACE/$label.jsonl"
+            }
+            run_route() {
+                local role=$1 path=$2 op script id
+                for op in show lint listing; do
+                    id="route-$role-$op"; script=execute
+                    PARAM_LIST_FILES=false
+                    if [[ $op == show ]]; then script=show-version; fi
+                    if [[ $op == listing ]]; then PARAM_LIST_FILES=true; fi
+                    run_path "$id" "$path" "$script" "PYTHONPATH=$W/tracer" "M2_CLI_TRACE=$TRACE/$id.jsonl"
+                    run_path "$id-plain" "$path" "$script"
+                    show_trace "$id"
+                done
+                PARAM_LIST_FILES=false
+            }
+            case "$1" in
+                resolution)
+                    for py in "$BASE" "$A/bin/python" "$B/bin/python"; do
+                        label=base
+                        if [[ $py == "$A/bin/python" ]]; then label=A; fi
+                        if [[ $py == "$B/bin/python" ]]; then label=B; fi
+                        obs "module-$label-file" "$py" -c 'import sys; print(sys.executable, sys.prefix, sys.base_prefix, flush=True); import yamllint; print(yamllint.__file__, yamllint.__version__)'
+                        obs "module-$label-launch" "$py" -m yamllint --version
+                    done
+                    run_route A "$A/bin:$B/bin:$BASE_PATH"
+                    run_route B "$B/bin:$A/bin:$BASE_PATH"
+                    # The clean base can legitimately contain a CLI. Record it independently of no-cli.
+                    obs base-cli-resolution /usr/bin/env "PATH=$BASE_PATH" /bin/bash -c 'type -P yamllint'
+                    if [[ $OBS_STATUS == 0 ]]; then
+                        run_route base "$BASE_PATH"
                     else
-                        printf 'pre-existing %s bytes CHANGED; current bytes=%s\n' "${want}" "${bytes}"
+                        run_path base-show "$BASE_PATH" show-version
+                        run_path base-lint "$BASE_PATH" execute
+                        PARAM_LIST_FILES=true run_path base-listing "$BASE_PATH" execute
                     fi
                     ;;
-                *)
-                    printf 'unknown action %s\n' "${action}"
-                    exit 2
+                saving)
+                    export PARAM_TARGETS=tree/warn.yml
+                    for role in base venv; do
+                        path="$W/lint-A:$BASE_PATH"
+                        if [[ $role == venv ]]; then path="$W/lint-A:$A/bin:$BASE_PATH"; fi
+                        resolved=$(PATH="$path" type -P python3)
+                        id="save-$role"
+                        obs "$id-resolution" /usr/bin/env "PATH=$path" /bin/bash -c 'type -P yamllint; type -P python3; python3 -I -c "import sys; print(sys.executable, sys.prefix, sys.base_prefix)"'
+                        PARAM_OUTPUT_FILE="$OUT/$id-traced.txt"
+                        run_path "$id" "$W/save-wrapper:$path" execute "M2_REAL_PY=$resolved" "M2_SAVE_TRACE=$TRACE/$id.jsonl" "PYTHONPATH=$W/tracer" "M2_CLI_TRACE=$TRACE/$id-cli.jsonl"
+                        show_trace "$id"
+                        show_trace "$id-cli"
+                        PARAM_OUTPUT_FILE="$OUT/$id-plain.txt"
+                        run_path "$id-plain" "$path" execute
+                        obs "$id-isolated" /usr/bin/env "PATH=$path" python3 -I -c 'import select,sys; print(sys.executable,sys.flags.isolated,select.__spec__.origin)'
+                        obs "$id-ordinary" /usr/bin/env "PATH=$path" python3 -c 'import select,sys; print(sys.executable,sys.flags.isolated,select.__spec__.origin)'
+                    done
+                    PARAM_OUTPUT_FILE="$OUT/without-python.txt" run_path absent-python-on "$W/only-lint" execute
+                    PARAM_OUTPUT_FILE="" run_path absent-python-off "$W/only-lint" execute
+                    ;;
+                contracts)
+                    path="$A/bin:$BASE_PATH"
+                    for setting in clean error warning strict hidden strict-hidden; do
+                        PARAM_TARGETS=tree/warn.yml; PARAM_STRICT=false; PARAM_NO_WARNINGS=false
+                        case "$setting" in
+                            clean) PARAM_TARGETS=tree/ok.yml ;;
+                            error) PARAM_TARGETS=tree/error.yml ;;
+                            strict) PARAM_STRICT=true ;;
+                            hidden) PARAM_NO_WARNINGS=true ;;
+                            strict-hidden) PARAM_STRICT=true; PARAM_NO_WARNINGS=true ;;
+                        esac
+                        for mode in off on; do
+                            id="contract-$setting-$mode"; PARAM_OUTPUT_FILE=""
+                            if [[ $mode == on ]]; then PARAM_OUTPUT_FILE="$OUT/$id.txt"; fi
+                            run_path "$id" "$path" execute "PYTHONPATH=$W/tracer" "M2_CLI_TRACE=$TRACE/$id.jsonl"
+                            show_trace "$id"
+                        done
+                    done
+                    ;;
+                priority)
+                    for kind in warnings errors; do
+                        export PARAM_TARGETS="$kind"
+                        for measure in control limited; do
+                            id="priority-$kind-$measure"
+                            export PARAM_OUTPUT_FILE="$OUT/$id.txt"
+                            obs "$id" /usr/bin/env "PATH=$A/bin:$BASE_PATH" "PYTHONPATH=$W/tracer" "M2_CLI_TRACE=$TRACE/$id.jsonl" "$BASE" -I "$W/fault.py" "$REPO/src/scripts/execute.sh" "$measure"
+                            show_trace "$id"
+                        done
+                    done
+                    ;;
+                failures)
+                    run_path missing-cli-show "$W/no-cli" show-version
+                    run_path missing-cli-lint "$W/no-cli" execute
+                    PARAM_LIST_FILES=true run_path missing-cli-list "$W/no-cli" execute
+                    PARAM_OUTPUT_FILE="$OUT/missing-cli.txt" run_path missing-cli-save "$W/no-cli" execute
+                    PARAM_TARGETS=- run_path missing-cli-invalid-target "$W/no-cli" execute
+                    PARAM_CONFIG_DATA="extends: default" run_path missing-cli-two-configs "$W/no-cli" execute
+                    # This is the explicit-path experiment. Baseline Orb has no environment-selection input.
+                    obs selection-missing-cli /usr/bin/env "PATH=$B/bin:$BASE_PATH" "$W/absent/bin/yamllint" --version
+                    obs selection-missing-python /usr/bin/env "PATH=$B/bin:$BASE_PATH" "$W/absent/bin/python" -m yamllint --version
+                    obs selection-alternative-available "$B/bin/yamllint" --version
                     ;;
             esac
-            BASHENV
-            chmod +x /tmp/meas/run_exec.sh /tmp/meas/show_version.sh /tmp/meas/run_limited.sh /tmp/meas/bash_env.sh
-            obs_sh "slim-bin" 'ls -l /tmp/meas/slim'
-            obs_sh "fixture-sizes" 'du -sh /tmp/meas/fixtures/warnmany /tmp/meas/fixtures/errmany'
+            M2_FILE
+            cat > /tmp/m2-work/check.py \<<'M2_FILE'
+            """Check evidence integrity. Product statuses remain in the raw observation index."""
+            import csv
+            import hashlib
+            import json
+            import os
+            from pathlib import Path
+
+            root = Path("/tmp/meas")
+            work = Path("/tmp/m2-work")
+            env_id = os.environ["MEAS_ENV_ID"]
+            traces = root / "traces"
+            saved = root / "saved"
+            readings = root / "readings" / env_id
+            base = (work / "base-python").read_text().strip()
+            rows = list(csv.DictReader((root / (env_id + ".index.tsv")).open(), delimiter="\t"))
+            rc = {row["reading"]: int(row["exit"]) for row in rows}
+            errors = []
+            def check(ok, detail):
+                if not ok:
+                    errors.append(detail)
+            def stream(i, name):
+                return (readings / (i + "." + name)).read_bytes()
+            def trace(i):
+                return [json.loads(line) for line in (traces / (i + ".jsonl")).read_text().splitlines()]
+            def same_measurement(i, plain):
+                check((rc[i], stream(i, "stdout"), stream(i, "stderr")) ==
+                      (rc[plain], stream(plain, "stdout"), stream(plain, "stderr")), i + " observation differs under instrumentation")
+            def cli(i, role):
+                entries = trace(i)
+                check(len(entries) == 1, i + " CLI event count")
+                prefix = str(work / role)
+                for event in entries:
+                    check(event["cli"] == prefix + "/bin/yamllint" and event["prefix"] == prefix, i + " CLI identity")
+                    check(event["python"].startswith(prefix + "/bin/") and bool(event["module"]) and
+                          event["module"].startswith(prefix + "/") and bool(event["version"]), i + " Python/module identity")
+
+            check(len(rc) == len(rows), "duplicate reading names")
+            for role in ("A", "B"):
+                for act in ("show", "lint", "listing"):
+                    case = f"route-{role}-{act}"
+                    cli(case, role)
+                    same_measurement(case, case + "-plain")
+
+            if rc["base-cli-resolution"] == 0:
+                for act in ("show", "lint", "listing"):
+                    case = "route-base-" + act
+                    same_measurement(case, case + "-plain")
+                    events = trace(case)
+                    check(len(events) == 1 and all(events[0][k] for k in ("python", "cli", "module", "version")), case + " base CLI identity")
+            else:
+                check(all("base-" + act in rc for act in ("show", "lint", "listing")), "missing clean-base Orb observations")
+
+            for role in ("base", "venv"):
+                case = "save-" + role
+                events = trace(case)
+                check(sorted(e["operation"] for e in events) == ["finalize", "forward", "prepare"], case + " helper stages")
+                for e in events:
+                    if role == "base":
+                        check(e["python"] == base and e["prefix"] == e["base_prefix"], case + " must use captured base interpreter")
+                    else:
+                        check(e["prefix"] == str(work / "A") and e["prefix"] != e["base_prefix"], case + " must use A")
+                    check(e["isolated"] == 1 and all(e["stdlib"].values()), case + " isolation/modules")
+                cli(case + "-cli", "A")
+                same_measurement(case, case + "-plain")
+                for mode in ("traced", "plain"):
+                    path = saved / f"{case}-{mode}.txt"
+                    check(path.is_file() and path.read_bytes() == stream(case, "stdout"), case + " saved bytes " + mode)
+
+            observed = {}
+            for setting in ("clean", "error", "warning", "strict", "hidden", "strict-hidden"):
+                off, on = (f"contract-{setting}-{mode}" for mode in ("off", "on"))
+                cli(off, "A")
+                cli(on, "A")
+                same_measurement(off, on)
+                path = saved / (on + ".txt")
+                check(path.is_file() and path.read_bytes() == stream(on, "stdout"), on + " saved bytes")
+                observed[setting] = {"disabled": rc[off], "enabled": rc[on], "saved_bytes": path.stat().st_size if path.exists() else None}
+            for kind in ("warnings", "errors"):
+                control, limited = (f"priority-{kind}-{mode}" for mode in ("control", "limited"))
+                cli(control, "A")
+                cli(limited, "A")
+                check(len(stream(control, "stdout")) > 1024, control + " output does not exceed limit")
+                check(stream(control, "stdout") == stream(limited, "stdout"), limited + " stdout different from control")
+                check((saved / (control + ".txt")).read_bytes() == stream(control, "stdout"), control + " saved bytes")
+                observed[limited] = {"orb_status": rc[limited], "saved": (saved / (limited + ".txt")).exists(),
+                                     "file_size_fault": b"File too large" in stream(limited, "stderr")}
+                check(observed[limited]["file_size_fault"], limited + " fault did not exercise output writing")
+            for role in ("after-A", "after-B"):
+                check(rc["prefix-" + role] == 0, role + " retained consumer prefix or marker check failed")
+            for i in ("missing-cli-show", "missing-cli-lint", "missing-cli-list", "missing-cli-save", "missing-cli-invalid-target",
+                      "missing-cli-two-configs", "selection-missing-cli", "selection-missing-python", "absent-python-on", "absent-python-off"):
+                check(i in rc, i + " observation missing")
+            observed["temporary_files"] = sorted(p.name for p in saved.glob(".yamllint-orb-output-*"))
+            observed["saved_files"] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(saved.iterdir()) if p.is_file()}
+            print(json.dumps({"schema": 1, "candidate": env_id, "results": observed, "evidence_errors": errors}, indent=2, sort_keys=True))
+            raise SystemExit(bool(errors))
+            M2_FILE
+            cat > /tmp/m2-work/fault.py \<<'M2_FILE'
+            """Only the Orb process tree inherits the limit. Drain both pipes outside it."""
+            import os
+            import resource
+            import subprocess
+            import sys
+
+            def limit_file_size():
+                resource.setrlimit(resource.RLIMIT_FSIZE, (1024, 1024))
+
+            result = subprocess.run(["/bin/bash", sys.argv[1]], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    preexec_fn=limit_file_size if sys.argv[2] == "limited" else None)
+            sys.stdout.buffer.write(result.stdout)
+            sys.stderr.buffer.write(result.stderr)
+            raise SystemExit(result.returncode if result.returncode >= 0 else 128 - result.returncode)
+            M2_FILE
+            cat > /tmp/m2-work/tracer/sitecustomize.py \<<'M2_FILE'
+            """Record the actual running console script at exit, outside its two output streams."""
+            import atexit
+            import json
+            import os
+            import sys
+
+            def write_identity():
+                module = sys.modules.get("yamllint")
+                event = {
+                    "argv0": sys.argv[0], "cli": os.path.realpath(sys.argv[0]),
+                    "python": sys.executable, "prefix": sys.prefix, "base_prefix": sys.base_prefix,
+                    "module": getattr(module, "__file__", None),
+                    "version": getattr(module, "__version__", None),
+                }
+                with open(os.environ["M2_CLI_TRACE"], "a", encoding="utf-8") as output:
+                    output.write(json.dumps(event, sort_keys=True) + "\n")
+
+            if os.path.basename(sys.argv[0]) == "yamllint" and os.environ.get("M2_CLI_TRACE"):
+                atexit.register(write_identity)
+            M2_FILE
+            cat > /tmp/m2-work/save-probe.py \<<'M2_FILE'
+            # This prelude runs in the same -I Python invocation immediately before the original helper.
+            import importlib.util as _m2_util, json as _m2_json, os as _m2_os, sys as _m2_sys
+            _m2_event = {
+                "operation": _m2_sys.argv[1], "resolved_python3": _m2_os.environ["M2_REAL_PY"],
+                "python": _m2_sys.executable, "prefix": _m2_sys.prefix, "base_prefix": _m2_sys.base_prefix,
+                "isolated": _m2_sys.flags.isolated, "stdlib": {
+                    k: _m2_util.find_spec(k).origin for k in ("os", "select", "stat", "sys")
+                },
+            }
+            with open(_m2_os.environ["M2_SAVE_TRACE"], "a", encoding="utf-8") as _m2_log:
+                _m2_log.write(_m2_json.dumps(_m2_event, sort_keys=True) + "\n")
+            M2_FILE
+            cat > /tmp/m2-work/save-wrapper/python3 \<<'M2_FILE'
+            #!/bin/bash
+            set -eu
+            if [[ ${1:-} == -I && ${2:-} == -c ]]; then
+                original=$3
+                shift 3
+                exec "$M2_REAL_PY" -I -c "$(< /tmp/m2-work/save-probe.py)
+            $original" "$@"
+            fi
+            exec "$M2_REAL_PY" "$@"
+            M2_FILE
+            chmod +x /tmp/m2-work/save-wrapper/python3
+            source /tmp/m2-work/shared.sh
+            mkdir -p "$FIX/tree" "$W/no-cli" "$W/only-lint" "$W/lint-A" "$TRACE" "$OUT"
+            printf '%s\n' "$PATH" > "$W/base-path"
+            python3 -c 'import sys; assert sys.prefix == sys.base_prefix; print(sys.executable)' > "$W/base-python"
+            BASE=$(< "$W/base-python")
+            require_obs base-identity "$BASE" -c 'import sys; print(sys.executable, sys.prefix, sys.base_prefix, sys.version)'
+            for spec in A:1.38.0 B:1.37.1; do
+                name=${spec%:*}
+                version=${spec#*:}
+                require_obs "create-$name" "$BASE" -m venv "$W/$name"
+                require_obs "install-$name" "$W/$name/bin/python" -m pip --isolated install --disable-pip-version-check --index-url https://pypi.org/simple "yamllint==$version"
+            done
+            ln -s "$A/bin/yamllint" "$W/lint-A/yamllint"
+            ln -s "$A/bin/yamllint" "$W/only-lint/yamllint"
+            ln -s "$BASE" "$W/no-cli/python3"
+            printf '%s\n' "$A" > "$W/explicit-destination"
+            printf '%s\n' '---' 'key: ok' > "$FIX/tree/ok.yml"
+            printf '%s\n' '---' 'key: [' > "$FIX/tree/error.yml"
+            printf '%s\n' '---' 'key: abcdefghijklmnopqrstuvwxyz0123456789' > "$FIX/tree/warn.yml"
+            printf '%s\n' 'extends: default' 'rules:' '  line-length:' '    max: 20' '    level: warning' > "$FIX/warn.cfg"
+            # Deliberately visible to non-isolated interpreters for which select is not built in.
+            printf '%s\n' 'M2_LOCAL_SHADOW = True' > "$FIX/select.py"
+            mkdir -p "$FIX/warnings" "$FIX/errors"
+            for n in {1..64}; do
+                cp "$FIX/tree/warn.yml" "$FIX/warnings/w$n.yml"
+                cp "$FIX/tree/error.yml" "$FIX/errors/e$n.yml"
+            done
       - run:
-          name: M2-01a Explicit handoff, producing step
+          name: S1 Read explicit destination in a new consumer step
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            IFS= read -r dest < "$W/explicit-destination"
+            obs explicit-consumer-shell shell_view
+            cd "$FIX"
+            obs explicit-show "$dest/bin/yamllint" --version
+            obs explicit-list "$dest/bin/yamllint" --list-files tree
+            obs explicit-tree-lint "$dest/bin/yamllint" -c warn.cfg tree
+      - run:
+          name: S2 Intervening user step exports a different PATH
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            export PATH="$B/bin:$PATH"
+            obs user-export-shell shell_view
+            obs user-export-default yamllint --version
+            IFS= read -r dest < "$W/explicit-destination"
+            obs user-export-explicit "$dest/bin/yamllint" --version
+            obs explicit-next-selected-B "$B/bin/yamllint" --version
+            obs explicit-original-after-B "$dest/bin/yamllint" --version
+      - run:
+          name: S3 Observe the next fresh shell then install a controlled user marker
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            obs post-export-fresh-shell shell_view
+            obs post-export-explicit "$A/bin/yamllint" --version
+            [[ -n ${BASH_ENV:-} ]]
+            if [[ -e $BASH_ENV ]]; then note 'native BASH_ENV file present'; else note 'native BASH_ENV file absent'; fi
+            printf '%s\n' 'export M2_USER_MARK=consumer-r1' 'export PATH="/tmp/m2-work/B/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: S4 Read the user marker and append the selected environment
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            obs consumer-owned-shell shell_view
+            require_obs remember-consumer-prefix prefix_snapshot
+            printf '%s\n' 'export PATH="/tmp/m2-work/A/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: S5 Observe the baseline route after A then append B
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            obs after-A-shell shell_view
+            require_obs prefix-after-A prefix_check
+            obs existing-route-after-A /bin/bash "$REPO/src/scripts/show-version.sh"
+            printf '%s\n' 'export PATH="/tmp/m2-work/B/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: S6 Observe the second handoff and the explicit route
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            obs after-B-shell shell_view
+            require_obs prefix-after-B prefix_check
+            obs existing-route-after-B /bin/bash "$REPO/src/scripts/show-version.sh"
+            obs explicit-A-after-B "$A/bin/yamllint" --version
+      - run:
+          name: S7 Trace actual display lint and listing processes
+          command: |
+            source /tmp/m2-work/shared.sh
+            base_path=$(< "$W/base-path")
+            exec /usr/bin/env -u BASH_ENV -u PYTHONPATH -u VIRTUAL_ENV "PATH=$base_path" /bin/bash "$W/cases.sh" resolution
+      - run:
+          name: S8 Compare the base and selected saving interpreters
+          command: |
+            source /tmp/m2-work/shared.sh
+            base_path=$(< "$W/base-path")
+            exec /usr/bin/env -u BASH_ENV -u PYTHONPATH -u VIRTUAL_ENV "PATH=$base_path" /bin/bash "$W/cases.sh" saving
+      - run:
+          name: S9 Compare warning and error output with saving on and off
+          command: |
+            source /tmp/m2-work/shared.sh
+            base_path=$(< "$W/base-path")
+            exec /usr/bin/env -u BASH_ENV -u PYTHONPATH -u VIRTUAL_ENV "PATH=$base_path" /bin/bash "$W/cases.sh" contracts
+      - run:
+          name: S10 Record selection and real Orb failures
+          command: |
+            source /tmp/m2-work/shared.sh
+            base_path=$(< "$W/base-path")
+            exec /usr/bin/env -u BASH_ENV -u PYTHONPATH -u VIRTUAL_ENV "PATH=$base_path" /bin/bash "$W/cases.sh" failures
+      - run:
+          name: S11 Measure write-failure priority with a known linter
+          command: |
+            source /tmp/m2-work/shared.sh
+            base_path=$(< "$W/base-path")
+            exec /usr/bin/env -u BASH_ENV -u PYTHONPATH -u VIRTUAL_ENV "PATH=$base_path" /bin/bash "$W/cases.sh" priority
+      - run:
+          name: S12 Check that each requested comparison produced evidence
+          command: |
+            source /tmp/m2-work/shared.sh
+
+            base=$(< "$W/base-python")
+            require_obs evidence-check "$base" -I "$W/check.py"
+            require_obs final-checkout git status --porcelain
+            [[ ! -s $OBS_STDOUT ]]
+      - run:
+          name: Package evidence including empty streams even after a failed step
+          when: always
           command: |
             set -euo pipefail
-            source /tmp/meas/obs.sh
-            printf '/tmp/meas/venvA\n' > /tmp/meas/venv_path
-            obs "producer-same-step" /tmp/meas/venvA/bin/yamllint --version
-            obs_sh "producer-path" 'printf "PATH=%s\n" "$PATH"'
-      - run:
-          name: M2-01b Explicit handoff, separate consuming step
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            note "a different shell from M2-01a; nothing was exported to it"
-            VENV="$(cat /tmp/meas/venv_path)"
-            obs_sh "consumer-path" 'printf "PATH=%s\n" "$PATH"'
-            obs_sh "consumer-inherited" 'command -v yamllint || echo ABSENT'
-            obs "consumer-explicit-version" "${VENV}/bin/yamllint" --version
-            cd /tmp/meas/fixtures
-            obs_sh "consumer-explicit-listing" "${VENV}/bin/yamllint --list-files . | sort"
-            obs "consumer-explicit-lint" "${VENV}/bin/yamllint" tree/ok.yml
-      - run:
-          name: M2-01c A consumer's own step changes PATH first
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            obs_sh "after-consumer-path-change-resolved" 'export PATH=/tmp/meas/venvB/bin:$PATH; command -v yamllint && yamllint --version'
-            obs_sh "after-consumer-path-change-explicit" 'export PATH=/tmp/meas/venvB/bin:$PATH; /tmp/meas/venvA/bin/yamllint --version'
-      - run:
-          name: M2-02a BASH_ENV handoff, appending step
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            obs_sh "bash-env-name" 'printf "BASH_ENV=%s\n" "${BASH_ENV:-UNSET}"'
-            note "the file content is never printed; a project variable in it could be a credential"
-            obs "bash-env-remember" /tmp/meas/bash_env.sh remember
-            printf 'export MEAS_MARKER_KEPT=1\n' >> "${BASH_ENV}"
-            printf 'export PATH=/tmp/meas/venvA/bin:$PATH\n' >> "${BASH_ENV}"
-            obs "bash-env-after-append" /tmp/meas/bash_env.sh shape
-      - run:
-          name: M2-02b BASH_ENV handoff, later step
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            obs_sh "bash-env-later-path" 'printf "PATH=%s\n" "$PATH"'
-            obs_sh "bash-env-later-resolve" 'command -v yamllint && yamllint --version'
-            obs_sh "bash-env-marker-kept" 'printf "MEAS_MARKER_KEPT=%s\n" "${MEAS_MARKER_KEPT:-UNSET}"'
-            note "survival is judged by re-hashing the remembered byte range, not by reading it"
-            obs "bash-env-prefix-unchanged" /tmp/meas/bash_env.sh verify
-            obs "bash-env-shape-now" /tmp/meas/bash_env.sh shape
-      - run:
-          name: M2-02c BASH_ENV value, text or instruction, and a second append
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            note "benign substitution marker; records whether a value is evaluated"
-            printf 'export MEAS_VALUE=%s\n' '/tmp/meas/A$(echo INJECTED)B' >> "${BASH_ENV}"
-            printf "export MEAS_VALUE_QUOTED='%s'\n" '/tmp/meas/A$(echo INJECTED)B' >> "${BASH_ENV}"
-            printf 'export PATH=/tmp/meas/venvB/bin:$PATH\n' >> "${BASH_ENV}"
-            obs "bash-env-second-append" /tmp/meas/bash_env.sh shape
-      - run:
-          name: M2-02d BASH_ENV after the second append
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            obs_sh "value-unquoted" 'printf "MEAS_VALUE=%s\n" "${MEAS_VALUE:-UNSET}"'
-            obs_sh "value-quoted" 'printf "MEAS_VALUE_QUOTED=%s\n" "${MEAS_VALUE_QUOTED:-UNSET}"'
-            obs_sh "path-after-two-appends" 'printf "PATH=%s\n" "$PATH"'
-            obs_sh "resolve-after-two-appends" 'command -v yamllint && yamllint --version'
-      - run:
-          name: M2-03 Display, lint and listing targets
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            cd /tmp/meas/fixtures
-            note "venvB is earlier on PATH than venvA in the next two readings"
-            obs_sh "show-version-script" '
-                export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH
-                /tmp/meas/show_version.sh
-                status=$?
-                printf "resolved=%s\n" "$(command -v yamllint)"
-                exit "${status}"
-            '
-            obs_sh "execute-script-listing" 'export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH; /tmp/meas/run_exec.sh "." "" "" false false true "" | sort'
-            obs_sh "execute-script-lint" 'export PATH=/tmp/meas/venvB/bin:/tmp/meas/venvA/bin:$PATH; /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""'
-            obs "selected-a-module-file" /tmp/meas/venvA/bin/python -c 'import yamllint; print(yamllint.__file__, yamllint.APP_VERSION)'
-            obs "selected-a-module-launch" /tmp/meas/venvA/bin/python -m yamllint --version
-            obs "selected-b-module-launch" /tmp/meas/venvB/bin/python -m yamllint --version
-            obs_sh "destination-not-on-path" 'export PATH=/usr/bin:/bin; printf "resolved=%s\n" "$(command -v yamllint || echo ABSENT)"; yamllint --version'
-            obs_sh "base-module-launch" 'python3 -m yamllint --version'
-      - run:
-          name: M2-04 Who can judge placement
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            cd /tmp/meas/fixtures
-            note "installation receives only version; it never sees targets"
-            obs_sh "install-inputs" 'grep -n "PARAM_" "$(cat /tmp/meas/repo_path)/src/commands/install.yml"'
-            obs_sh "execute-inputs" 'grep -n "PARAM_" "$(cat /tmp/meas/repo_path)/src/commands/execute.yml"'
-            export PATH="/tmp/meas/venvA/bin:${PATH}"
-            obs "out-inside-target-dir" /tmp/meas/run_exec.sh "tree" "tree/report.txt" "" false false false ""
-            obs "out-equal-target-file" /tmp/meas/run_exec.sh "tree/ok.yml" "tree/ok.yml" "" false false false ""
-            obs "out-equal-config-file" /tmp/meas/run_exec.sh "tree" "custom.yml" "custom.yml" false false false ""
-            obs "out-parent-missing" /tmp/meas/run_exec.sh "tree" "/tmp/meas/absent/report.txt" "" false false false ""
-            obs "out-already-exists" /tmp/meas/run_exec.sh "tree" "/tmp/meas/fixtures/custom.yml" "" false false false ""
-            obs "out-parent-not-a-directory" /tmp/meas/run_exec.sh "tree" "custom.yml/report.txt" "" false false false ""
-            obs "out-dotdot" /tmp/meas/run_exec.sh "tree" "/tmp/meas/out/../out/dotdot.txt" "" false false false ""
-            obs "out-outside-targets" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/report-ok.txt" "" false false false ""
-            obs_sh "out-listing" 'ls -l /tmp/meas/out'
-      - run:
-          name: M2-05 Interpreter used for saving
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            cd /tmp/meas/fixtures
-            note "M2-05 controls unset BASH_ENV so earlier handoff appends cannot restore python3"
-            obs_sh "helper-contract" 'grep -n "command -v python3\|python3 -I\|^import " "$(cat /tmp/meas/repo_path)/src/scripts/execute.sh"'
-            obs "save-with-path-python3" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:${PATH}" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/base.txt" "" false false false ""
-            obs "save-without-python3" env -u BASH_ENV PATH="/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/nopy.txt" "" false false false ""
-            obs "save-with-only-venv-python3" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/venvpy.txt" "" false false false ""
-            obs "save-disabled-without-python3" env -u BASH_ENV PATH="/tmp/meas/slim" /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""
-            obs "venv-helper-modules" /tmp/meas/venvA/bin/python -I -c 'import os, select, stat, sys; print("modules ok")'
-            printf 'raise SystemExit("LOCAL select.py WAS IMPORTED")\n' > /tmp/meas/fixtures/select.py
-            obs "save-with-local-select" env -u BASH_ENV PATH="/tmp/meas/venvA/bin:${PATH}" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/isolated.txt" "" false false false ""
-            obs "isolation-without-I" /tmp/meas/venvA/bin/python -c 'import select; print(getattr(select, "__file__", "<built-in>"))'
-            obs "isolation-with-I" /tmp/meas/venvA/bin/python -I -c 'import select; print(getattr(select, "__file__", "<built-in>"))'
-            rm -f /tmp/meas/fixtures/select.py
-            obs_sh "saved-files" 'ls -l /tmp/meas/out'
-      - run:
-          name: M2-06 Output contract and exit status priority
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            cd /tmp/meas/fixtures
-            export PATH="/tmp/meas/venvA/bin:${PATH}"
-            obs "clean-save-disabled" /tmp/meas/run_exec.sh "tree/ok.yml" "" "" false false false ""
-            obs "clean-save-enabled" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/clean.txt" "" false false false ""
-            obs "lint-error-save-enabled" /tmp/meas/run_exec.sh "tree/broken.yml" "/tmp/meas/out/error.txt" "" false false false ""
-            obs "warning-only-not-strict" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/warn.txt" "" false false false ""
-            obs "warning-only-strict" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/strict.txt" "" true false false ""
-            obs "warning-only-strict-no-warnings" /tmp/meas/run_exec.sh "tree/warn.yml" "/tmp/meas/out/strictnw.txt" "" true true false ""
-            obs "collision-refused" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/out/clean.txt" "" false false false ""
-            obs_sh "saved-bytes" 'ls -l /tmp/meas/out'
-            obs_sh "saved-heads" 'for f in /tmp/meas/out/*.txt; do printf "== %s\n" "$f"; head -c 400 "$f"; printf "\n"; done'
-            note "a root default user is not refused by file permissions, so the"
-            note "unwritable-parent reading applies only where id -u is not 0"
-            mkdir -p /tmp/meas/ro
-            chmod 500 /tmp/meas/ro
-            obs "current-uid" id -u
-            obs "unwritable-parent" /tmp/meas/run_exec.sh "tree/ok.yml" "/tmp/meas/ro/report.txt" "" false false false ""
-            note "the next four readings separate the lint status from a save failure"
-            note "that happens while the result is being written, using the RLIMIT_FSIZE"
-            note "fault the repository already uses in .circleci/test-output-file.py;"
-            note "that limit applies to root as well, so every candidate can run it"
-            obs "control-lint-ok-many-warnings" /tmp/meas/run_exec.sh "warnmany" "/tmp/meas/out/warnmany.txt" "warn.cfg" false false false ""
-            obs "control-lint-error-many" /tmp/meas/run_exec.sh "errmany" "/tmp/meas/out/errmany.txt" "" false false false ""
-            obs "save-fails-after-lint-ok" /tmp/meas/run_limited.sh 1 "warnmany" "/tmp/meas/out/limited-ok.txt" "warn.cfg" false false false ""
-            obs "save-fails-after-lint-error" /tmp/meas/run_limited.sh 1 "errmany" "/tmp/meas/out/limited-err.txt" "" false false false ""
-            obs_sh "limited-results-absent" 'ls -l /tmp/meas/out/limited-ok.txt /tmp/meas/out/limited-err.txt 2>&1'
-            obs_sh "temporary-files-left" 'ls -a /tmp/meas/out | grep yamllint-orb-output- || echo "no temporary file left behind"'
-      - run:
-          name: M2-07 Failure codes, diagnostics and limits
-          command: |
-            set -euo pipefail
-            source /tmp/meas/obs.sh
-            obs_sh "main-not-touched" 'cd "$(cat /tmp/meas/repo_path)" && git status --porcelain && git diff --stat'
+            mkdir -p /tmp/m2-artifacts
+            cd /tmp/meas
+            source ./obs.sh
             show_index
+            parts=()
+            for file in "$MEAS_ENV_ID.log" "$MEAS_ENV_ID.index.tsv" readings saved traces; do
+                if [[ -e $file ]]; then parts+=("$file"); fi
+            done
+            find "${parts[@]}" -type f -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS
+            tar -czf "/tmp/m2-artifacts/$MEAS_ENV_ID.tar.gz" SHA256SUMS "${parts[@]}"
+            cd /tmp/m2-artifacts
+            sha256sum "$MEAS_ENV_ID.tar.gz" > "$MEAS_ENV_ID.tar.gz.sha256"
       - store
 
 workflows:
-  measure-m2:
+  measure-m2-supplement:
     when:
       and:
+        - equal: ["exp/230-m2", << pipeline.git.branch >>]
         - not:
             equal: ["", << pipeline.parameters.approved-commit >>]
         - not:
@@ -611,26 +791,26 @@ workflows:
       - hold-until-approved:
           type: approval
       - m2:
-          name: m2-E01-cimg-py314
+          name: m2-supp-E01-cimg-py314
           env_id: E01
           image: cimg/python:3.14
           requires:
             - hold-until-approved
       - m2:
-          name: m2-E02-cimg-py313
+          name: m2-supp-E02-cimg-py313
           env_id: E02
           image: cimg/python:3.13
           requires:
             - hold-until-approved
       - m2:
-          name: m2-E03-ubuntu-2204
+          name: m2-supp-E03-ubuntu-2204
           env_id: E03
           image: ubuntu:22.04
           apt: true
           requires:
             - hold-until-approved
       - m2:
-          name: m2-E04-ubuntu-2404
+          name: m2-supp-E04-ubuntu-2404
           env_id: E04
           image: ubuntu:24.04
           apt: true
