@@ -1,5 +1,7 @@
 # v2.3.0 M2 実測記録 — #5545
 
+**2026-11-19 追記**　#176 の追加測定結果と完了条件 C1〜C7 の照合は [§18](#m2-176) にある。§1〜§17 と付録 A・B の件数・判定は #172 時点のもの。
+
 対象: Redmine project 318 / #5545、親 #5542、`230_ロードマップ` Wiki version 1。
 実測は 2026-11-18 JST。Claude（ID 11）が初稿を作成した。ChatGPT Work（ID 10）が CircleCI の公開証拠を回収・照合して ZIP にまとめ、人間（ID 3）が保存して Claude に提供した。
 この版には ChatGPT Work の照合・訂正を反映した。#172 の観測結果を記録し、#5545 の総合判定は追加測定後に行う。
@@ -542,6 +544,141 @@ ZIP に含まれないもの: venv の中身、fixture、helper スクリプト�
 1. #172 の履歴記録を通常の作業ブランチからレビューして main に反映する。
 2. 追加測定の目的・ケース・計画版・実験 commit・設定 SHA-256 を対応付け、計画 §11.1 に人間の承認と日時を記録してから実験ブランチを push する。経路はローカル → Git サーバー → GitHub。
 3. 実行後は pipeline 番号・候補・ケース別に別の実測欄を設ける。§2 は #172 の実行記録として保持し、#5545 の C7 は追加証拠から改めて判定する。
+
+<a id="m2-176"></a>
+
+## 18. #176 追加実測と #5545 の総合照合
+
+2026-11-19 JST、承認済みの追加測定で E01〜E04 の4ジョブが成功した。#172 で判定できなかった実行先を、#176 では実際に動いたプロセスと対照実行から特定した。ChatGPT Work が原本を照合して追記案を作成した。Claude はその版（文書 SHA-256 `75b597a65ecc30c301f2ad479eb3ca9d05f23c1b77d80819656fe4b3d3c84455`）を独立にレビューし、必須修正なし・追加測定不要と判定した。本節にはレビューで推奨された記述の修正3件を反映した。§1〜§17 と付録 A・B は #172 時点の記録として読める。追加測定の比較結果は §18.2〜§18.5、完了条件の判定案は §18.6 にまとめた。
+
+### 18.1 承認・実行・証拠の対応
+
+| 項目 | #176 で照合した値 |
+| --- | --- |
+| 計画 | 追加案 `4c6a9f219f64ad1e89c420a67dd96cda209a75d7` の直後に承認を記録した `main` の `bb1d5008b0fc31f0b319ce93eff2f7a57a80df02`。計画書の SHA-256 は `9db925667c03c7d542d87e0672b333360e55fa62b3cecd2cb7d233d596a29264` |
+| 比較の元資料 | #5544 終了時の M1 は `c22645388712e507a138d77127988192fb4f80e9`（journal 11297）。#172 の計画は `b49d6dfdbd14feb98cfc19e52ed99a912f0f739b`、照合済み M2 記録は `7fe29ca67cb4f2e3620ca15228fa9cc4dda7602f` |
+| 実験 branch と commit | `exp/230-m2` の `be97f874b99fd99582ae15434011910741c53200`。親は #172 の `ebd63fd1426dab201f5190b7e337e65eed09ca5a`、親との差分は `.circleci/config.yml` のみ |
+| 設定 SHA-256 | #172 は `4ac54e23315313794f32f0052bf5f0e00eac092231c4cbbfb604d66bfbce2375`、#176 は `b7b030636692e34f342a2d30c0df2c4a1720b7b097a88c439703a755c07a1512`。#176 は承認値・Git の設定・CircleCI の source・4ジョブの checkout で一致 |
+| 計画 §11.2 の #5545 追加実行行 | 計画 `bb1d500`、実験 `be97f874`、設定 `b7b03063…`（上記の完全値）。hold 成功は 2026-11-19 00:23:05.930 JST、最初の compute job 開始は同日 00:23:07.871 JST。記録先は本節 |
+| Pipeline / workflow | #176 `dec5b822-c1c2-4e88-a116-a7d33d805075`、`measure-m2-supplement` `ddc58199-1aa5-4865-a24c-7a05587928c9`、success。承認 hold 1件と small の compute 4件 |
+| Hold 確認 | job 2533 の `approved_by` は `d3d64a41-7b9c-4cce-97a9-48f8a292cb52`。時刻は successful hold の `stopped_at` を使用。CircleCI のアカウントと Redmine ID 3 との対応、人間による起動前 remote 照合の操作時刻は公開証拠の範囲外 |
+| 計画・設定の分離 | 比較時の `main` は `bb1d500`。技術基準 `2fc343180c9e13660889ac5643b75fbcabd513ea` からの差分は計画書・M1 記録・M2 記録の3ファイル。両版の通常 `.circleci/config.yml` の SHA-256 は `bbaca8dce8cae7118dcc720aa49475ca8cb3bf9f507b6f7d23f0ad4aad80941a`。今回の追記の対象は M2 記録1ファイル |
+
+時刻はすべて JST。#5544 は 11月17日 23:04:40 に終了した。#171 のパラメーター形式エラーと、同じ入力版で値を訂正した #172 の経緯は §2 にある。#171 は測定件数に含めず、#172 は当時の観測条件の範囲で利用する。
+
+| 出来事 | 時刻 | 根拠 |
+| --- | --- | --- |
+| 追加測定1回に対する人間の承認 | 11月18日 23:30（受領時計 23:30:48） | `main` の H9 §11.1 |
+| 実験 branch の push に対応する #175 作成 | 11月19日 00:15:02.207 | webhook。処理済み設定の workflow・job はともに0件 |
+| 追加測定 #176 作成 | 00:22:59.066 | API trigger。処理済み設定で4ジョブの承認 commit・hash と各候補 ID を照合 |
+| hold 開始 → 成功 | 00:22:59.673 → 00:23:05.930 | workflow jobs の job 2533 |
+| 最初の compute job 開始 → 最後の終了 | 00:23:07.871 → 00:24:42.116 | いずれも E03。workflow も同時刻に成功終了 |
+| 証拠回収 | 00:29:49 | ChatGPT Work が4組を当日取得した時刻。保存した原本は §18.7 に掲載 |
+
+4候補すべてで `revision-sha`、`config-hash`、`worktree-clean`、`final-checkout` を照合した。使用した Python の minor・実行ユーザー・CPU・使用 stdlib の標識は M1 §4 と対応する。E03/E04 は利用側の apt 準備後の候補条件である。
+
+| 候補・ジョブ | image / OS | 基底 Python / UID | `python` / PEP 668 標識 | 開始 → 終了（JST） |
+| --- | --- | --- | --- | --- |
+| E01 / 2534 | `cimg/python:3.14` / Ubuntu 24.04 | 3.14.10 / 1001 | 有 / 無 | 00:23:08.419 → 00:23:34.257 |
+| E02 / 2535 | `cimg/python:3.13` / Ubuntu 22.04 | 3.13.18 / 1001 | 有 / 無 | 00:23:08.469 → 00:23:33.383 |
+| E03 / 2537 | `ubuntu:22.04` / Ubuntu 22.04 | 3.10.12 / 0 | 無 / 無 | 00:23:07.871 → 00:24:42.116 |
+| E04 / 2536 | `ubuntu:24.04` / Ubuntu 24.04 | 3.12.3 / 0 | 無 / 有 | 00:23:08.364 → 00:23:45.418 |
+
+全候補が x86_64。Spin up ログで image のタグを確認した。完全な image digest は取得できず、イメージのバイト同一性までは判断できない。[計画版](https://github.com/circleci-orbs-mamono210/yamllint/commit/bb1d5008b0fc31f0b319ce93eff2f7a57a80df02)・[実験版](https://github.com/circleci-orbs-mamono210/yamllint/commit/be97f874b99fd99582ae15434011910741c53200)・[workflow](https://app.circleci.com/pipelines/gh/circleci-orbs-mamono210/yamllint/176/workflows/ddc58199-1aa5-4865-a24c-7a05587928c9)・[処理済み設定](https://circleci.com/api/v2/pipeline/dec5b822-c1c2-4e88-a116-a7d33d805075/config)・[job 一覧](https://circleci.com/api/v2/workflow/ddc58199-1aa5-4865-a24c-7a05587928c9/job)。
+
+### 18.2 別 step への引き継ぎ（C2・D03）
+
+ここで A は `/tmp/m2-work/A` の yamllint 1.38.0、B は `/tmp/m2-work/B` の 1.37.1。S1〜S6 は CircleCI の別々の run step で、`*-shell` は各 step 自身のシェルから読んだ。以下は4候補で共通した。
+
+| 実 step | 既存の PATH による解決 | 明示した実行先・利用者設定の観測 |
+| --- | --- | --- |
+| S1 新しい利用 step | yamllint 不在 | 保存しておいた A の絶対パスから版表示 1.38.0、3ファイル列挙、警告とエラーを含む lint は終了 1 |
+| S2 利用者が B を export | 通常の版表示は B 1.37.1 | A → B → A を明示すると 1.38.0 → 1.37.1 → 1.38.0 |
+| S3 次の利用 step | yamllint 不在に戻る | 明示 A は 1.38.0。この時点の native BASH_ENV ファイルは全候補で不在。利用者側のマーカーと B の PATH を書いた |
+| S4 既存内容を読み A を追記 | 追記前は B と `consumer-r1` | 利用者が先に書いた71バイトの長さと SHA-256 を記録 |
+| S5 A の追記後 | A が先頭。既存の版表示は 1.38.0 | 利用者の先頭71バイトの hash とマーカーが一致。ここで B を追記 |
+| S6 B の追記後 | PATH の先頭3要素は B/bin → A/bin → B/bin。B/bin が2回現れ、既存の版表示は 1.37.1 | 同じ71バイトとマーカーが再度一致。A の絶対パス指定は 1.38.0 |
+
+根拠は `explicit-{consumer-shell,show,list,tree-lint}`、`user-export-*`、`post-export-*`、`consumer-owned-shell`、`remember-consumer-prefix`、`after-{A,B}-shell`、`prefix-after-{A,B}`、`existing-route-after-{A,B}`、`explicit-A-after-B`。既存内容の保全を示せるのは制御した71バイト。#172 §6 の引用方法による値の再評価は引き続き制約になる。
+
+### 18.3 実際に起動した yamllint とモジュール（C3・D05）
+
+後続の比較では引き継ぎ前に記録した基底 PATH に戻し、子 bash を起動する前に BASH_ENV を外した。元の `show-version.sh` と `execute.sh` の lint・listing について、console script のプロセス自身が記録した `argv0`、解決された CLI、`sys.executable`、`sys.prefix`、モジュールファイル、版を照合した。
+
+| 比較 | 表示・lint・listing の3経路 | 同じ Python のモジュール起動 |
+| --- | --- | --- |
+| A を PATH 先頭にする | 全て A の `bin/yamllint` と `bin/python`、prefix は A、モジュールは A 配下の `site-packages/yamllint/__init__.py`、1.38.0 | A の `bin/python -m yamllint --version` は 0、1.38.0 |
+| B を PATH 先頭にする | 全て B の同じ相対位置、1.37.1 | B の同じ起動は 0、1.37.1 |
+| 捕捉した基底 PATH / 基底 Python | CLI の検索は 1、Orb の3経路は各127。4候補すべてで `yamllint: command not found` | 基底 Python の import と `-m yamllint --version` は各1。`No module named yamllint` |
+
+`route-{A,B}-{show,lint,listing}` の計24組は、計測の有無で終了コード・stdout・stderr が一致した。個々のモジュールパスと基底・venv の prefix は `module-{base,A,B}-{file,launch}` と `traces/route-*.jsonl` にある。不在の CLI または Python の絶対パスを指定すると各127、同時に利用可能だった B の直接指定は 0・1.37.1。これは明示パスを指定する比較用呼び出しであり、現行 Orb の公開入力には環境選択パラメーターがない。
+
+### 18.4 保存補助に使われた Python（C5・D05）
+
+yamllint を A の 1.38.0 に固定した。現行の保存処理の prepare / forward / finalize の内部から実行 Python と `sys.flags.isolated` を読み、同じ条件で観測コードを外して再度実行した。全4候補・両経路で終了 0、警告の stdout は79バイト、stderr は空。計測あり・なしの保存ファイルは stdout とバイト単位で一致した。
+
+| 候補 | 基底 PATH の python3 → 実行 Python | A を使う保存処理 | 作業ディレクトリの `select.py` と分離 |
+| --- | --- | --- | --- |
+| E01 | pyenv の shim → `/home/circleci/.pyenv/versions/3.14.10/bin/python3` | `/tmp/m2-work/A/bin/python3` | 基底・A とも通常はローカルを import、`-I` は標準の拡張モジュール |
+| E02 | pyenv の shim → `/home/circleci/.pyenv/versions/3.13.18/bin/python3` | 同上 | 同上 |
+| E03 | `/usr/bin/python3` | 同上 | 通常・`-I` とも組み込み `select` |
+| E04 | `/usr/bin/python3` | 同上 | 通常・`-I` とも組み込み `select` |
+
+基底側は `prefix == base_prefix`、A 側は `prefix == /tmp/m2-work/A` で `base_prefix` と異なる。全24回の helper プロセスで isolated フラグは 1、`os`・`select`・`stat`・`sys` の取得元を記録した。E03/E04 はフラグとモジュールの実体を確認できたが、この組み込みモジュールではカレントディレクトリの排除を見分けられない。PATH から python3 を外すと保存有効は起動前に2（`python3 was not found on PATH`）、保存無効は0。根拠は `save-{base,venv}*`、`absent-python-{on,off}`。
+
+### 18.5 出力・失敗時の優先順位（C6・D07）
+
+下表の終了値は計測ラッパーが捕捉した Orb プロセスの値。CircleCI で実際に失敗状態となった step を示す観測は、公開後直接確認の範囲で別途扱う。全候補で A の使用を確認した。
+
+| 入力 | 保存無効の終了 | 保存有効の終了 | stdout / 保存ファイルのバイト数 |
+| --- | ---: | ---: | ---: |
+| clean | 0 | 0 | 0 |
+| lint エラー | 1 | 1 | 103 |
+| 警告のみ | 0 | 0 | 79 |
+| 警告のみ・strict | 2 | 2 | 79 |
+| 警告非表示・strict なし | 0 | 0 | 0 |
+| 警告非表示・strict あり | 2 | 2 | 0 |
+
+各行で保存の有無による stdout・stderr の差はなく、stderr は空。保存有効では0バイトの場合も新規ファイルが作成された。根拠は `contract-{clean,error,warning,strict,hidden,strict-hidden}-{off,on}`、CLI の trace と保存ファイル。
+
+| 操作・失敗箇所 | 実測した戻り値と診断 |
+| --- | --- |
+| 実行先を明示した CLI/Python が存在しない | いずれも127。`No such file or directory`。別に利用可能な B への暗黙の切替は起きなかった |
+| CLI 不在の現行 Orb の表示・lint・listing／保存付き lint | 全て127。`yamllint: command not found`。保存付きは `no result file was created` も stderr に出力し、結果ファイルは残らなかった |
+| CLI 不在かつ不正な入力 | targets が単独の `-` なら2・`standalone '-' is not supported`、2種類の設定を同時指定すると2・`config_file and config_data cannot both be non-empty`。どちらも起動より先に拒否 |
+| lint 成功後の書き込み失敗 | 警告のみの対照は0。1,024バイトの書き込み制限を掛けると2・`File too large`。対照と同じ5,239バイトの stdout を維持 |
+| lint エラー後の書き込み失敗 | 対照も制限時も1。制限時の stderr に同じ書き込み失敗が出た。対照と同じ6,583バイトの stdout を維持 |
+
+制限時はいずれも最終ファイルを作成せず、一時ファイルの一覧も空だった。各候補で保存した12ファイルすべての実バイトを対応する stdout と照合した。`missing-cli-*`、`selection-*`、`priority-{warnings,errors}-{control,limited}`、`evidence-check` で判断を追える。
+
+### 18.6 完了条件と後続判断
+
+| 条件 | #172 と #176 を合わせた判定案 | 適用限界・後続へ渡すこと |
+| --- | --- | --- |
+| C1 | §2・§18.1 の実行順、起動時に展開された承認値と4候補の checkout、M1 成果物・終了 journal の対応を確認。追加1回は承認後に開始 | #171 の入力訂正、#172 の実測、#175 の空の設定、#176 の実測を別々に記録。hold の実名と起動前の人間の操作時刻は未確認 |
+| C2 | 実 step をまたぐ明示方式と BASH_ENV 方式、利用者の PATH 変更・複数回の追記・制御した既存内容を比較できた（§6・§18.2） | BASH_ENV の追記後、既存スクリプトで直接確認したのは版表示。lint・列挙の実行先は §18.3 の PATH を指定した比較に基づく。引用・値の再評価の境界は #172 §6 |
+| C3 | A と B それぞれで表示・lint・listing の実行プロセスを同定し、基底 Python の import・起動失敗と A/B の成功を比較できた（§18.3） | 基底環境に yamllint を導入した状態でのモジュール起動は M2 では未測定。#172 の基底と称した読み取りを再分類した経緯は §7・§12 に記録した |
+| C4 | #5544 の配置比較（内側で列挙3件→5件）と #172 §8 の起動前拒否6件（各2）を利用し、機械的に判定できる範囲を区別できた | install は版のみを受け、execute に導入先の情報がない。対象・設定と同一の既存ファイルは「既存」の検査が先行する。#176 での再測定対象外 |
+| C5 | yamllint を固定し、実行パスと `sys.prefix` が異なる基底・venv の保存用 Python を比較できた。隔離、4モジュール、保存無効時の依存、Python 不在時の診断を確認（§18.4） | E03/E04 では組み込み select のため局所 import の違いを実証できる範囲に限界がある |
+| C6 | 通常・警告・strict・警告非表示、入力拒否、明示選択の失敗、CLI 不在、lint と保存失敗の優先順位を、コード・診断・ファイルに対応付けた（§10、§11、§18.5） | Orb プロセスの終了値と CircleCI step の表示を分けて扱う |
+| C7 | D03＝§18.2、D05＝§18.3〜§18.4、D07＝§18.5、D08＝下記の利用側直接確認への引き継ぎ、配置＝§8・C4。#172 で不足した C3/C5 の比較がそろい、Phase 1 の技術判断資料は充足と判定する | 最終レビュー、通常ブランチからの実測記録の main 反映、成果物 commit の #5545 journal への記録で永続化する |
+
+D03・D05 の方式・採否は #5547 に渡す。D07 では同じ終了値になる原因を診断で識別し、D08 では公表された版を利用する独立したプロジェクトで、どの経路・代表環境と意図的に失敗する job を確認するかを決める。#176 で得たのは基準スクリプトと実験設定の結果である。#5545 の追加比較のための CI 再実行は不要と判断した。
+
+### 18.7 回収した原本と照合方法
+
+各ジョブの Artifacts にある `measurement-m2-supplement/E0n.tar.gz` と同名の `.sha256` を回収した。下表はアーカイブ本体の SHA-256 と内部 `SHA256SUMS` の照合件数。読み取りは、索引・結合ログ・空を含む stdout/stderr 原本をバイト単位で照合した件数である。
+
+| 候補 / ジョブ | 読み取り | 内部 SHA-256 | アーカイブ SHA-256 |
+| --- | ---: | ---: | --- |
+| E01 / [2534](https://app.circleci.com/pipelines/gh/circleci-orbs-mamono210/yamllint/176/workflows/ddc58199-1aa5-4865-a24c-7a05587928c9/jobs/2534) | 137 | 314 | `13d628b5254b18cccb7f0653f02b19666be1f39c2df36bc643e971f2c1d65d0b` |
+| E02 / [2535](https://app.circleci.com/pipelines/gh/circleci-orbs-mamono210/yamllint/176/workflows/ddc58199-1aa5-4865-a24c-7a05587928c9/jobs/2535) | 137 | 314 | `b5fd9aadf5a383bb25366410e75d27042fc475289d4a421e9661fddcb45f0287` |
+| E03 / [2537](https://app.circleci.com/pipelines/gh/circleci-orbs-mamono210/yamllint/176/workflows/ddc58199-1aa5-4865-a24c-7a05587928c9/jobs/2537) | 156 | 352 | `258126b647a0f05cd990a12c8bf1956d984ed4d44c5c1b93af84e076f2b61a12` |
+| E04 / [2536](https://app.circleci.com/pipelines/gh/circleci-orbs-mamono210/yamllint/176/workflows/ddc58199-1aa5-4865-a24c-7a05587928c9/jobs/2536) | 156 | 352 | `7b9caf5f3c4e073e1be2595d13017f725defc505b546e9e885c44bb5a4e03f27` |
+
+4個の外部ハッシュと内部1,332件が一致した。586件（137＋137＋156＋156）のコマンド・終了値・stdout/stderr を照合し、全1,172個の stream 原本が存在した。各候補の自己検査も `evidence_errors=[]` だった。
+
+回収物は `yamllint-5545-m2-results-176.zip`。展開すると `evidence/artifacts/` に CircleCI の原本8ファイル、`evidence/run.json` に実行・step のメタデータ、`evidence/observations.tsv` に全件の索引がある。各アーカイブ内の `readings/`・`traces/`・`saved/` に出力と実ファイルを保存した。`python3 verify.py` で通信せずに原本の整合性と上記の比較を再検証できる。#172 原本の別 ZIP と照合方法は §15 に記録した。
 
 ## 付録 A. 全読み取りの索引
 
